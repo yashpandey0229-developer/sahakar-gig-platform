@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#FAF7F0] text-[#16202C] font-sans selection:bg-[#1B4D3E] selection:text-white;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1, h2, h3, .font-editorial {
+    font-family: 'Newsreader', Georgia, serif;
+  }
+
+  .font-display {
+    font-family: 'Instrument Serif', Georgia, serif;
+  }
+}
+
+/* Custom Soft Scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #FAF7F0;
+}
+::-webkit-scrollbar-thumb {
+  background: #D5CEBF;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #B8AF9E;
+}
+
+/* Editorial Paper & Card Utilities */
+.paper-card {
+  background: #FFFFFF;
+  border: 1px solid #EBE5D8;
+  box-shadow: 0 4px 20px -2px rgba(22, 32, 44, 0.04);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.paper-card:hover {
+  border-color: #1B4D3E;
+  transform: translateY(-3px);
+  box-shadow: 0 16px 36px -8px rgba(27, 77, 62, 0.12);
+}
+
+/* Stitched Artisan Postcard */
+.stitched-card {
+  background: #FFFFFF;
+  border: 1.5px dashed #D6CFBE;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.06);
+}
+
+/* Circular Verified Stamp */
+.stamp-circle {
+  border: 2px solid #C05621;
+  color: #C05621;
+  border-radius: 50%;
+}
+
+/* Passbook Binder Spine (Vertical Navy with White Holes) */
+.passbook-spine {
+  background-color: #16202C;
+  background-image: radial-gradient(#FAF7F0 3px, transparent 3.5px);
+  background-size: 20px 24px;
+  background-position: 8px 12px;
+}
+
+/* Passbook Ledger Box */
+.passbook-card {
+  background: #FFFFFF;
+  border: 1.5px solid #16202C;
+  box-shadow: 0 12px 36px rgba(22, 32, 44, 0.08);
+}
+
+/* Leaflet Container Overrides */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #FAF7F0 !important;
+  border-radius: 1.25rem;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #FFFFFF !important;
+  color: #16202C !important;
+  border: 1px solid #EBE5D8 !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Iridescent Voice Orb Animation */
+@keyframes iridescentOrb {
+  0% { transform: scale(1) rotate(0deg); box-shadow: 0 0 25px 6px rgba(27, 77, 62, 0.35); }
+  50% { transform: scale(1.08) rotate(180deg); box-shadow: 0 0 35px 10px rgba(192, 86, 33, 0.35); }
+  100% { transform: scale(1) rotate(360deg); box-shadow: 0 0 25px 6px rgba(27, 77, 62, 0.35); }
+}
+
+.iridescent-orb {
+  animation: iridescentOrb 6s ease-in-out infinite;
+  background: linear-gradient(135deg, #1B4D3E 0%, #2A6F5A 40%, #C05621 80%, #D97706 100%);
+}

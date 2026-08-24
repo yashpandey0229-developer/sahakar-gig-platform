@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: sahakargig-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        value: mongodb+srv://admin:Sahakar123%23@cluster0.wb1e7sn.mongodb.net/sahakargig?retryWrites=true&w=majority&appName=Cluster0
+      - key: PORT
+        value: 5000
