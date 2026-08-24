@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "build": "echo 'Backend ready for Render deployment'"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",
