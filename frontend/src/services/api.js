@@ -41,6 +41,12 @@ export const api = {
   getWorker: async (id) => {
     return await fetchJson(`/workers/${id}`);
   },
+  registerWorker: async (workerData) => {
+    return await fetchJson('/workers', {
+      method: 'POST',
+      body: JSON.stringify(workerData),
+    });
+  },
   updateWorkerWallet: async (id, walletData) => {
     return await fetchJson(`/workers/${id}/wallet`, {
       method: 'PATCH',

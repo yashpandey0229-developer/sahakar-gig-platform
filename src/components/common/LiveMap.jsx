@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import { MapPin, Navigation, Compass, Layers, Loader2, Crosshair } from 'lucide-react';
+import { MapPin, Navigation, Compass, Layers, Loader2, Crosshair, ShieldCheck } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
+import { calculateDistanceKm } from '../../services/dispatchEngine';
 
 export function LiveMap({ 
   customerLocation, 
@@ -13,7 +14,7 @@ export function LiveMap({
   const { customer, detectUserLocation, isLocating } = useAppState();
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const markersRef = useRef({ customer: null, worker: null, nearby: [], route: null });
+  const markersRef = useRef({ customer: null, worker: null, nearby: [], route: null, geofenceCircle: null });
 
   const activeCustomerLoc = customerLocation || customer.location;
 
@@ -32,10 +33,10 @@ export function LiveMap({
         attributionControl: false
       });
 
-      // Daylight CartoDB Voyager Tile Layer
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      // 100% Free, Public OpenStreetMap Standard Layer (Zero API key needed, never expires, no watermarks)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        subdomains: 'abcd',
+        attribution: '&copy; OpenStreetMap contributors',
       }).addTo(map);
 
       L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -85,6 +86,23 @@ export function LiveMap({
       iconSize: [26, 26],
       iconAnchor: [13, 13]
     });
+
+    // 0. 10 km Geofence Service Boundary Circle
+    if (activeCustomerLoc) {
+      if (!markersRef.current.geofenceCircle) {
+        markersRef.current.geofenceCircle = L.circle([activeCustomerLoc.lat, activeCustomerLoc.lng], {
+          radius: 10000, // 10 km in meters
+          color: '#1B4D3E',
+          weight: 2,
+          dashArray: '6, 6',
+          fillColor: '#10b981',
+          fillOpacity: 0.08
+        }).addTo(map);
+        markersRef.current.geofenceCircle.bindPopup('<b>10 km Cooperative Geofence</b><br/>Only artisans within this circle receive instant dispatch');
+      } else {
+        markersRef.current.geofenceCircle.setLatLng([activeCustomerLoc.lat, activeCustomerLoc.lng]);
+      }
+    }
 
     // 1. Customer Marker
     if (activeCustomerLoc) {
@@ -162,15 +180,23 @@ export function LiveMap({
     }
   };
 
+  const realDistanceKm = (activeCustomerLoc && workerLocation)
+    ? calculateDistanceKm(activeCustomerLoc.lat, activeCustomerLoc.lng, workerLocation.lat, workerLocation.lng)
+    : null;
+
   return (
-    <div className={className}>
-      <div ref={mapContainerRef} className="w-full h-full" />
+    <div className={`${className} isolate relative`}>
+      <div ref={mapContainerRef} className="w-full h-full relative z-0" />
       
       {/* Overlay Status Badge */}
-      <div className="absolute top-4 left-4 z-[1000] bg-white/95 backdrop-blur-md border border-slate-200 px-3.5 py-2 rounded-2xl shadow-lg flex items-center gap-2">
-        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+      <div className="absolute top-4 left-4 z-10 bg-white/95 backdrop-blur-md border border-slate-200 px-3.5 py-2 rounded-2xl shadow-lg flex items-center gap-2">
+        <span className={`w-2.5 h-2.5 rounded-full ${realDistanceKm !== null ? (realDistanceKm <= 10 ? 'bg-emerald-500 animate-ping' : 'bg-rose-500') : 'bg-emerald-500 animate-ping'}`} />
         <span className="text-xs font-black text-slate-800 tracking-wide">
-          {workerLocation ? 'LIVE GPS DISPATCH RADAR' : 'COOPERATIVE GEO-CLUSTER'}
+          {realDistanceKm !== null ? (
+            <span>📍 Real Distance: {realDistanceKm.toFixed(2)} km {realDistanceKm <= 10 ? '· (Within 10 km Geofence)' : '· (Exceeds 10 km)'}</span>
+          ) : (
+            <span>📍 10 KM COOPERATIVE DISPATCH GEOFENCE ACTIVE</span>
+          )}
         </span>
       </div>
 
@@ -179,7 +205,7 @@ export function LiveMap({
         onClick={handleRecenter}
         disabled={isLocating}
         title="Detect My Real GPS Location"
-        className="absolute bottom-4 left-4 z-[1000] bg-white hover:bg-emerald-50 border border-slate-200 text-slate-700 px-3 py-2 rounded-2xl shadow-lg transition hover:scale-105 flex items-center gap-2 text-xs font-bold"
+        className="absolute bottom-4 left-4 z-10 bg-white hover:bg-emerald-50 border border-slate-200 text-slate-700 px-3 py-2 rounded-2xl shadow-lg transition hover:scale-105 flex items-center gap-2 text-xs font-bold"
       >
         {isLocating ? (
           <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
@@ -190,7 +216,7 @@ export function LiveMap({
       </button>
 
       {/* Address Tag */}
-      <div className="absolute bottom-4 right-14 z-[1000] bg-white/90 backdrop-blur-sm border border-slate-200 text-[11px] text-slate-700 font-bold px-3 py-1.5 rounded-xl shadow-sm truncate max-w-[200px]">
+      <div className="absolute bottom-4 right-14 z-10 bg-white/90 backdrop-blur-sm border border-slate-200 text-[11px] text-slate-700 font-bold px-3 py-1.5 rounded-xl shadow-sm truncate max-w-[200px]">
         📍 {customer.address}
       </div>
     </div>

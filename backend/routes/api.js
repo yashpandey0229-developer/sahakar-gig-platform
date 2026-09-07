@@ -100,6 +100,35 @@ router.get('/services', (req, res) => {
   res.json(SERVICES_CATALOG);
 });
 
+// In-memory fallback stores for high resilience
+let inMemoryWorkers = [...INITIAL_WORKERS];
+let inMemoryBookings = [
+  {
+    id: 'BK-7821',
+    serviceId: 'electrical',
+    serviceTitle: 'Electrical & Power Systems',
+    subServiceName: 'MCB / Short Circuit Troubleshooting',
+    customerId: 'c-501',
+    customerName: 'Priya Sharma',
+    customerPhone: '+91 98221 55601',
+    customerAddress: 'Flat 402, Rohan Heights, FC Road, Shivajinagar, Pune',
+    customerLocation: { lat: 18.5298, lng: 73.8472 },
+    workerId: 'w-101',
+    workerName: 'Ramesh Jadhav',
+    workerPhone: '+91 98230 44819',
+    workerAvatar: 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=150&auto=format&fit=crop&q=80',
+    workerRating: 4.9,
+    workerSociety: 'Pune Urban Electrical & Tech Cooperative',
+    totalAmount: 499,
+    status: 'COMPLETED',
+    startOtp: '4819',
+    endOtp: '7721',
+    createdAt: '2026-08-22T14:30:00Z',
+    ratingGiven: 5,
+    reviewText: 'Prompt arrival and explained the fair cooperative billing breakdown. Very professional!'
+  }
+];
+
 // 4. Workers Endpoints
 router.get('/workers', async (req, res) => {
   if (isMongoConnected()) {
@@ -110,7 +139,37 @@ router.get('/workers', async (req, res) => {
       console.error(err);
     }
   }
-  res.json(INITIAL_WORKERS);
+  res.json(inMemoryWorkers);
+});
+
+router.post('/workers', async (req, res) => {
+  const workerData = req.body;
+  if (!workerData.id) {
+    workerData.id = 'w-' + Date.now();
+  }
+
+  // Update in-memory
+  const existingIdx = inMemoryWorkers.findIndex(w => w.id === workerData.id);
+  if (existingIdx >= 0) {
+    inMemoryWorkers[existingIdx] = { ...inMemoryWorkers[existingIdx], ...workerData };
+  } else {
+    inMemoryWorkers = [workerData, ...inMemoryWorkers];
+  }
+
+  if (isMongoConnected()) {
+    try {
+      const saved = await Worker.findOneAndUpdate(
+        { id: workerData.id },
+        { $set: workerData },
+        { upsert: true, new: true }
+      );
+      return res.status(201).json(saved);
+    } catch (e) {
+      console.error('Error saving worker to MongoDB:', e.message);
+    }
+  }
+
+  res.status(201).json(workerData);
 });
 
 router.get('/workers/:id', async (req, res) => {
@@ -120,12 +179,30 @@ router.get('/workers/:id', async (req, res) => {
       if (worker) return res.json(worker);
     } catch (e) {}
   }
-  const worker = INITIAL_WORKERS.find(w => w.id === req.params.id) || INITIAL_WORKERS[0];
+  const worker = inMemoryWorkers.find(w => w.id === req.params.id) || inMemoryWorkers[0];
   res.json(worker);
 });
 
 router.patch('/workers/:id/wallet', async (req, res) => {
   const { availableBalance, patronageDividends, welfarePoints, emergencyFundReserved } = req.body;
+  
+  // Update in-memory
+  inMemoryWorkers = inMemoryWorkers.map(w => {
+    if (w.id === req.params.id) {
+      return {
+        ...w,
+        wallet: {
+          ...w.wallet,
+          availableBalance: availableBalance ?? w.wallet.availableBalance,
+          patronageDividends: patronageDividends ?? w.wallet.patronageDividends,
+          welfarePoints: welfarePoints ?? w.wallet.welfarePoints,
+          emergencyFundReserved: emergencyFundReserved ?? w.wallet.emergencyFundReserved
+        }
+      };
+    }
+    return w;
+  });
+
   if (isMongoConnected()) {
     try {
       const updated = await Worker.findOneAndUpdate(
@@ -158,11 +235,20 @@ router.get('/bookings', async (req, res) => {
       console.error(e);
     }
   }
-  res.json([]);
+  res.json(inMemoryBookings);
 });
 
 router.post('/bookings', async (req, res) => {
   const bookingData = req.body;
+
+  // Add to in-memory store
+  const existingIdx = inMemoryBookings.findIndex(b => b.id === bookingData.id);
+  if (existingIdx >= 0) {
+    inMemoryBookings[existingIdx] = { ...inMemoryBookings[existingIdx], ...bookingData };
+  } else {
+    inMemoryBookings = [bookingData, ...inMemoryBookings];
+  }
+
   if (isMongoConnected()) {
     try {
       const newBooking = await Booking.create(bookingData);
@@ -176,6 +262,15 @@ router.post('/bookings', async (req, res) => {
 
 router.patch('/bookings/:id', async (req, res) => {
   const updates = req.body;
+
+  // Update in-memory store
+  inMemoryBookings = inMemoryBookings.map(b => {
+    if (b.id === req.params.id) {
+      return { ...b, ...updates };
+    }
+    return b;
+  });
+
   if (isMongoConnected()) {
     try {
       const updated = await Booking.findOneAndUpdate(

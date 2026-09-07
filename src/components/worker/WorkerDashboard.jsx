@@ -19,17 +19,28 @@ import {
   ArrowUpRight,
   Activity,
   CheckCircle2,
-  Navigation
+  Navigation,
+  Crosshair,
+  Loader2,
+  AlertTriangle,
+  Compass
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 import { speechService } from '../../services/speechService';
+import { calculateDistanceKm } from '../../services/dispatchEngine';
 
 export function WorkerDashboard({ onOpenJobExecution, onOpenWallet }) {
   const { 
     activeWorker, 
     activeBooking, 
     updateBookingStatus, 
-    language 
+    acceptJobByWorker,
+    pendingBroadcastingGigs,
+    language,
+    detectWorkerLocation,
+    isWorkerLocating,
+    simulateWorkerNearCustomer,
+    customer
   } = useAppState();
 
   const [isOnline, setIsOnline] = useState(true);
@@ -122,6 +133,54 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet }) {
 
       </div>
 
+      {/* Worker Live GPS Telemetry Bar & Geofence Indicator */}
+      <div className="bg-white border border-amber-200 rounded-3xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center font-bold shadow-sm">
+            <Compass className="w-5 h-5 text-amber-700" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-mono">
+                WORKER REAL GPS TELEMETRY
+              </span>
+              <span className="text-xs text-slate-600 font-mono font-bold">
+                {activeWorker.location ? `${activeWorker.location.lat.toFixed(4)}, ${activeWorker.location.lng.toFixed(4)}` : '18.5298, 73.8472'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-700 font-medium truncate max-w-lg mt-0.5">
+              📍 {activeWorker.address || 'Pune Urban Sector (Shivajinagar Hub)'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Detect Worker Real GPS */}
+          <button
+            onClick={() => detectWorkerLocation(activeWorker.id)}
+            disabled={isWorkerLocating}
+            className="px-3.5 py-2 rounded-xl bg-[#111C26] hover:bg-[#1E2D3D] text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+            title="Pin this phone's real GPS latitude & longitude"
+          >
+            {isWorkerLocating ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+            ) : (
+              <Crosshair className="w-3.5 h-3.5 text-amber-400" />
+            )}
+            <span>{isWorkerLocating ? 'Detecting GPS...' : '📍 Update Worker Real GPS'}</span>
+          </button>
+
+          {/* Hackathon Stage Proximity Helper */}
+          <button
+            onClick={() => simulateWorkerNearCustomer(1.8)}
+            className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold transition flex items-center gap-1.5"
+            title="Sets worker coordinates 1.8 km from customer to test 10 km geofence match live"
+          >
+            <span>⚡ Set &lt; 2 km for Demo</span>
+          </button>
+        </div>
+      </div>
+
       {/* 4 Financial & Dividend Metric Tiles */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
@@ -138,32 +197,32 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet }) {
             onClick={onOpenWallet}
             className="mt-3 text-xs text-emerald-700 hover:underline flex items-center gap-1 font-bold"
           >
-            <span>Instant Cashout to UPI</span>
+            <span>Instant UPI Cashout (0% Fee)</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* Accrued Patronage Dividends */}
         <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm hover:border-amber-500 transition">
-          <div className="flex items-center justify-between text-xs text-amber-700 mb-1 font-bold">
-            <span>Patronage Dividends</span>
-            <Sparkles className="w-4 h-4 text-amber-500" />
+          <div className="flex items-center justify-between text-xs text-slate-500 mb-1 font-bold">
+            <span>Quarterly Dividend</span>
+            <Award className="w-4 h-4 text-amber-600" />
           </div>
-          <div className="text-3xl font-black text-amber-600">
-            ₹{activeWorker.wallet.patronageDividends.toLocaleString()}
+          <div className="text-3xl font-black text-amber-700">
+            ₹{activeWorker.wallet.patronageDividends}
           </div>
           <span className="text-[10px] text-slate-500 block mt-2 font-medium">
-            Quarterly cooperative profit share
+            Accrued cooperative profit share
           </span>
         </div>
 
         {/* Welfare Points */}
         <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm hover:border-blue-500 transition">
-          <div className="flex items-center justify-between text-xs text-blue-700 mb-1 font-bold">
-            <span>Welfare Credits</span>
-            <ShieldCheck className="w-4 h-4 text-blue-500" />
+          <div className="flex items-center justify-between text-xs text-slate-500 mb-1 font-bold">
+            <span>Welfare & Health Fund</span>
+            <ShieldCheck className="w-4 h-4 text-blue-600" />
           </div>
-          <div className="text-3xl font-black text-blue-600">
+          <div className="text-3xl font-black text-blue-700">
             {activeWorker.wallet.welfarePoints} pts
           </div>
           <span className="text-[10px] text-slate-500 block mt-2 font-medium">
@@ -187,7 +246,142 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet }) {
 
       </div>
 
-      {/* Active Gig in Progress OR Incoming Dispatch Alert */}
+      {/* Incoming Live Dispatch Alert with 10 km Geofence Verification (Uber/Ola Matching) */}
+      {pendingBroadcastingGigs && pendingBroadcastingGigs.length > 0 && (!activeBooking || activeBooking.status === 'COMPLETED') && (() => {
+        const gig = pendingBroadcastingGigs[0];
+        const custLoc = gig.customerLocation || customer?.location || { lat: 18.5298, lng: 73.8472 };
+        const workerLoc = activeWorker?.location || { lat: 18.5298, lng: 73.8472 };
+        const distanceKm = calculateDistanceKm(workerLoc.lat, workerLoc.lng, custLoc.lat, custLoc.lng);
+        const isWithin10Km = distanceKm <= 10.0;
+
+        return (
+          <div className={`p-6 sm:p-8 rounded-3xl shadow-2xl space-y-4 animate-in zoom-in-95 border-4 transition-all duration-300 ${
+            isWithin10Km
+              ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white border-emerald-300 shadow-emerald-900/30'
+              : 'bg-gradient-to-r from-rose-600 via-amber-600 to-rose-700 text-white border-rose-300 shadow-rose-900/30'
+          }`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-black uppercase tracking-widest">
+              <span className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-white animate-ping" />
+                {isWithin10Km ? (
+                  <span>🎯 LIVE GIG WITHIN RANGE · 10 KM DISPATCH RADAR (तत्काल नया कार्य)</span>
+                ) : (
+                  <span>⚠️ GIG OUT OF RANGE · BEYOND 10 KM RADIUS (दायरे से बाहर)</span>
+                )}
+              </span>
+              
+              <div className="flex items-center gap-2">
+                <span className={`px-3 py-1 rounded-full text-xs font-mono font-black ${
+                  isWithin10Km ? 'bg-white text-emerald-900' : 'bg-white text-rose-900'
+                }`}>
+                  📍 {distanceKm.toFixed(1)} km away {isWithin10Km ? '(≤ 10 km Range)' : '(> 10 km Geofence)'}
+                </span>
+                <span className="bg-slate-950 text-amber-300 px-3 py-1 rounded-full text-[10px] font-mono">
+                  LIVE RADAR
+                </span>
+              </div>
+            </div>
+
+            {/* Gig Details Card */}
+            <div className="bg-white text-slate-900 rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 px-2 py-0.5 rounded-md">
+                    {gig.serviceTitle}
+                  </span>
+                  <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                    isWithin10Km ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                  }`}>
+                    {isWithin10Km ? '✅ WITHIN 10 KM' : '🚫 BEYOND 10 KM'}
+                  </span>
+                </div>
+
+                <h3 className="text-xl font-black text-slate-950 font-['Outfit'] mt-1">
+                  {gig.subServiceName || gig.serviceTitle}
+                </h3>
+                
+                <p className="text-xs text-slate-700 mt-1 flex items-center gap-1 font-medium">
+                  <MapPin className="w-3.5 h-3.5 text-amber-700" />
+                  {gig.customerAddress}
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Citizen: <strong>{gig.customerName}</strong> ({gig.customerPhone})
+                </p>
+
+                {/* Proximity distance indicator */}
+                <div className="mt-2 text-xs font-mono font-bold text-slate-600 flex items-center gap-2">
+                  <Navigation className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Your GPS to Customer: <strong>{distanceKm.toFixed(2)} km</strong></span>
+                  <span className="text-slate-400">|</span>
+                  <span>Max Limit: <strong>10.00 km</strong></span>
+                </div>
+              </div>
+
+              <div className="text-left sm:text-right border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
+                <span className="text-xs text-slate-500 font-bold block">88% Direct Payout</span>
+                <div className="text-3xl font-black text-emerald-700">
+                  ₹{gig.breakdown?.workerPayout || Math.round(gig.totalAmount * 0.88)}
+                </div>
+                <span className="text-[10px] text-amber-800 font-bold block">
+                  +₹{gig.breakdown?.estimatedPatronageDividend || 120} patronage dividend
+                </span>
+              </div>
+            </div>
+
+            {/* Out of range alert message if > 10 km */}
+            {!isWithin10Km && (
+              <div className="bg-rose-950/40 border border-rose-300/40 rounded-xl p-3 text-xs text-rose-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-amber-300 flex-shrink-0" />
+                  <span>
+                    Cooperative bylaws restrict dispatches to within a <strong>10 km radius</strong> for rapid 15-minute arrival. Because you are <strong>{distanceKm.toFixed(1)} km</strong> away, this gig cannot be accepted by your terminal.
+                  </span>
+                </div>
+                <button
+                  onClick={() => simulateWorkerNearCustomer(1.8)}
+                  className="px-3 py-1.5 rounded-lg bg-white text-rose-950 text-xs font-black hover:bg-rose-100 transition whitespace-nowrap"
+                >
+                  ⚡ Simulate Nearby (&lt; 2 km)
+                </button>
+              </div>
+            )}
+
+            {/* Action Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+              <button
+                onClick={() => handleReadoutGig(gig)}
+                className="px-4 py-2.5 rounded-xl bg-slate-950 text-white hover:bg-slate-900 text-xs font-bold flex items-center gap-2 transition"
+              >
+                <Volume2 className="w-4 h-4 text-amber-400" />
+                <span>Listen in Hindi (हिन्दी में सुनें)</span>
+              </button>
+
+              {isWithin10Km ? (
+                <button
+                  onClick={() => {
+                    acceptJobByWorker(gig.id, activeWorker);
+                    onOpenJobExecution();
+                  }}
+                  className="px-8 py-3 rounded-2xl bg-white hover:bg-emerald-50 text-emerald-950 text-xs font-black shadow-2xl flex items-center gap-2 transition scale-105"
+                >
+                  <Check className="w-4 h-4 text-emerald-600" />
+                  <span>ACCEPT JOB NOW (स्वीकार करें)</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled
+                    className="px-6 py-3 rounded-2xl bg-white/20 text-white/60 text-xs font-bold cursor-not-allowed flex items-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    <span>OUT OF RANGE (&gt; 10 km)</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
       {activeBooking && activeBooking.status !== 'COMPLETED' ? (
         <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-teal-50 border-2 border-emerald-500 shadow-xl space-y-5 animate-in zoom-in-95">
           

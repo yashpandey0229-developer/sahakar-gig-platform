@@ -79,16 +79,16 @@ export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
           </p>
         </div>
 
-        {/* Action Switch to Worker Portal */}
+        {/* Customer Action Button */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={switchToWorkerPerspective}
-            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black text-xs flex items-center gap-1.5 shadow-lg shadow-orange-500/25 transition"
-            title="Switch to Worker Partner Companion view"
+          <a
+            href={`tel:${booking.workerPhone || '9823044819'}`}
+            className="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition"
+            title="Call assigned technician directly"
           >
-            <span>View Worker Partner HUD</span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
+            <Phone className="w-3.5 h-3.5" />
+            <span>Call Specialist</span>
+          </a>
         </div>
       </div>
 
@@ -135,46 +135,15 @@ export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
             className="h-80 w-full rounded-3xl overflow-hidden shadow-xl border border-slate-200"
           />
 
-          {/* Quick Demo Controls for SIH Hackathon Jury Testing */}
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between text-xs">
-            <span className="font-bold text-slate-700 flex items-center gap-1.5">
-              <Zap className="w-4 h-4 text-amber-500" />
-              SIH Fast-Forward Telemetry:
+          {/* Customer Safety & Quality Assurance Strip (Urban Company Style) */}
+          <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs">
+            <span className="font-bold text-emerald-950 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>Doorstep Verification: Only share Start OTP <strong>({booking.startOtp})</strong> when technician reaches your home.</span>
             </span>
-            <div className="flex gap-2">
-              {booking.status === 'ACCEPTED' && (
-                <button
-                  onClick={() => updateBookingStatus(booking.id, 'EN_ROUTE')}
-                  className="px-3 py-1.5 rounded-xl bg-amber-100 text-amber-900 border border-amber-300 font-bold hover:bg-amber-200 transition"
-                >
-                  Trigger "En Route"
-                </button>
-              )}
-              {booking.status === 'EN_ROUTE' && (
-                <button
-                  onClick={() => updateBookingStatus(booking.id, 'ARRIVED')}
-                  className="px-3 py-1.5 rounded-xl bg-blue-100 text-blue-900 border border-blue-300 font-bold hover:bg-blue-200 transition"
-                >
-                  Trigger "Arrived"
-                </button>
-              )}
-              {booking.status === 'ARRIVED' && (
-                <button
-                  onClick={() => updateBookingStatus(booking.id, 'IN_PROGRESS')}
-                  className="px-3 py-1.5 rounded-xl bg-purple-100 text-purple-900 border border-purple-300 font-bold hover:bg-purple-200 transition"
-                >
-                  Trigger "In Progress"
-                </button>
-              )}
-              {booking.status === 'IN_PROGRESS' && (
-                <button
-                  onClick={() => updateBookingStatus(booking.id, 'COMPLETED')}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold hover:bg-emerald-200 transition"
-                >
-                  Trigger "Completed"
-                </button>
-              )}
-            </div>
+            <span className="hidden sm:inline-block px-2.5 py-1 bg-emerald-600 text-white font-mono font-bold rounded-lg text-[11px]">
+              Verified Safe
+            </span>
           </div>
         </div>
 

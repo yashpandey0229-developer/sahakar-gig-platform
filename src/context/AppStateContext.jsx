@@ -18,7 +18,21 @@ const AppStateContext = createContext(null);
 
 export function AppStateProvider({ children }) {
   // Current active portal persona: 'customer' | 'worker' | 'cooperative' | 'ministry'
-  const [currentRole, setCurrentRole] = useState('customer');
+  const [currentRole, setCurrentRoleState] = useState(() => {
+    try {
+      return localStorage.getItem('sahakar_user_role') || 'customer';
+    } catch (e) {
+      return 'customer';
+    }
+  });
+
+  const setCurrentRole = (role) => {
+    setCurrentRoleState(role);
+    try {
+      localStorage.setItem('sahakar_user_role', role);
+    } catch (e) {}
+  };
+
   const [language, setLanguage] = useState('en'); // 'en' | 'hi' | 'mr'
 
   // DB Connection Telemetry
@@ -44,8 +58,9 @@ export function AppStateProvider({ children }) {
   });
 
   const [isLocating, setIsLocating] = useState(false);
+  const [isWorkerLocating, setIsWorkerLocating] = useState(false);
 
-  // Function to detect real live browser GPS
+  // Function to detect real live browser GPS for Customer
   const detectUserLocation = async () => {
     setIsLocating(true);
     try {
@@ -71,6 +86,81 @@ export function AppStateProvider({ children }) {
     }
   };
 
+  // Function to detect real live browser GPS for Worker
+  const detectWorkerLocation = async (workerId = activeWorkerId) => {
+    setIsWorkerLocating(true);
+    try {
+      const realGeo = await detectRealCurrentLocation();
+      setWorkers(prev => prev.map(w => {
+        if (w.id === workerId) {
+          const updated = {
+            ...w,
+            location: { lat: realGeo.lat, lng: realGeo.lng },
+            address: realGeo.address,
+            isRealGps: true
+          };
+          api.registerWorker(updated).catch(console.warn);
+          return updated;
+        }
+        return w;
+      }));
+
+      addNotification(
+        'Worker Live GPS Pinned',
+        `Worker location set to ${realGeo.address.slice(0, 40)}...`,
+        'location'
+      );
+      setIsWorkerLocating(false);
+      return realGeo;
+    } catch (err) {
+      console.warn('Worker GPS detection notice:', err.message);
+      setIsWorkerLocating(false);
+      throw err;
+    }
+  };
+
+  // Presentation Mode helper: Set Worker within 2 km of Customer for instant hackathon demonstration
+  const simulateWorkerNearCustomer = (distanceKm = 1.8) => {
+    const custLoc = customer.location || { lat: 18.5298, lng: 73.8472 };
+    const latOffset = (distanceKm / 111) * 0.7;
+    const lngOffset = (distanceKm / 111) * 0.7;
+    const nearbyLoc = {
+      lat: parseFloat((custLoc.lat + latOffset).toFixed(5)),
+      lng: parseFloat((custLoc.lng + lngOffset).toFixed(5))
+    };
+
+    setWorkers(prev => prev.map(w => {
+      if (w.id === activeWorkerId) {
+        const updated = {
+          ...w,
+          location: nearbyLoc,
+          isRealGps: true,
+          address: `Within Range of ${customer.address.slice(0, 25)} (${distanceKm} km away)`
+        };
+        api.registerWorker(updated).catch(console.warn);
+        return updated;
+      }
+      return w;
+    }));
+
+    addNotification(
+      'Demo Proximity Active',
+      `Worker GPS pinned ${distanceKm} km from Customer (Within 10 km range).`,
+      'success'
+    );
+  };
+
+  // Restore saved customer profile from localStorage if present
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('sahakar_customer');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setCustomer(prev => ({ ...prev, ...parsed }));
+      }
+    } catch (e) {}
+  }, []);
+
   // Auto-detect real location once on initial mount if available
   useEffect(() => {
     if (typeof navigator !== 'undefined' && navigator.geolocation) {
@@ -85,6 +175,7 @@ export function AppStateProvider({ children }) {
     {
       id: 'BK-7821',
       serviceId: 'electrical',
+      serviceTitle: 'Electrical & Power Systems',
       subServiceName: 'MCB / Short Circuit Troubleshooting',
       customerId: 'c-501',
       customerName: 'Priya Sharma',
@@ -183,6 +274,48 @@ export function AppStateProvider({ children }) {
     initFromApi();
   }, []);
 
+  // Background Live Heartbeat: Polls every 3.5 seconds to synchronize cross-device actions
+  useEffect(() => {
+    const syncTimer = setInterval(async () => {
+      try {
+        const remoteBookings = await api.getBookings();
+        if (remoteBookings && Array.isArray(remoteBookings) && remoteBookings.length > 0) {
+          setBookings(prev => {
+            const prevMap = new Map(prev.map(b => [b.id, b]));
+            let hasChanged = false;
+
+            const merged = remoteBookings.map(remote => {
+              const local = prevMap.get(remote.id);
+              if (!local) {
+                hasChanged = true;
+                return remote;
+              }
+              if (
+                local.status !== remote.status ||
+                local.workerId !== remote.workerId ||
+                local.etaMins !== remote.etaMins
+              ) {
+                hasChanged = true;
+                return { ...local, ...remote };
+              }
+              return local;
+            });
+
+            prev.forEach(local => {
+              if (!remoteBookings.some(r => r.id === local.id)) {
+                merged.push(local);
+              }
+            });
+
+            return hasChanged ? merged : prev;
+          });
+        }
+      } catch (e) {}
+    }, 3500);
+
+    return () => clearInterval(syncTimer);
+  }, []);
+
   const addNotification = (title, message, type = 'info') => {
     const newNotif = {
       id: 'n-' + Date.now(),
@@ -195,7 +328,118 @@ export function AppStateProvider({ children }) {
   };
 
   const activeWorker = workers.find(w => w.id === activeWorkerId) || workers[0];
-  const activeBooking = bookings.find(b => b.id === activeBookingId);
+  
+  // Intelligent active booking resolution for dual-device view
+  const activeBooking = bookings.find(b => b.id === activeBookingId)
+    || (currentRole === 'worker' ? bookings.find(b => b.workerId === activeWorker?.id && b.status !== 'COMPLETED') : null)
+    || (currentRole === 'customer' ? bookings.find(b => b.customerId === customer?.id && b.status !== 'COMPLETED') : null);
+
+  const pendingBroadcastingGigs = bookings.filter(b => b.status === 'BROADCASTING');
+
+  // Customer Profile Editor
+  const updateCustomerProfile = (updates) => {
+    setCustomer(prev => {
+      const next = { ...prev, ...updates };
+      try {
+        localStorage.setItem('sahakar_customer', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+    addNotification('Profile Saved', `Customer profile set for ${updates.name || customer.name}.`, 'info');
+  };
+
+  // Worker Partner Registration
+  const registerWorker = async (workerData) => {
+    const id = workerData.id || ('w-' + Date.now());
+    const newWorker = {
+      id,
+      name: workerData.name || 'New Sahakari Partner',
+      phone: workerData.phone || '+91 98230 00000',
+      avatar: workerData.avatar || 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=150&auto=format&fit=crop&q=80',
+      rating: 4.9,
+      totalJobsCompleted: 0,
+      skills: workerData.skills || ['electrical', 'plumbing'],
+      societyName: workerData.societyName || 'Pune Urban Multi-Trade Cooperative',
+      cooperativeMemberId: workerData.cooperativeMemberId || ('COOP-MH-' + Math.floor(1000 + Math.random() * 9000)),
+      bankAccountMasked: workerData.bankAccountMasked || '•••• 7712 (UPI Verified)',
+      isOnline: true,
+      fairRotationScore: 98,
+      location: workerData.location || { lat: 18.5298, lng: 73.8472 },
+      wallet: {
+        grossEarnings: 0,
+        availableBalance: 450,
+        patronageDividends: 0,
+        welfarePoints: 50,
+        emergencyFundReserved: 0
+      }
+    };
+
+    setWorkers(prev => [newWorker, ...prev.filter(w => w.id !== id)]);
+    setActiveWorkerId(id);
+
+    try {
+      await api.registerWorker(newWorker);
+    } catch (e) {
+      console.warn('API registerWorker notice:', e.message);
+    }
+
+    addNotification(
+      'Partner Registered & Live on Radar',
+      `Welcome ${newWorker.name}! Your cooperative profile has been created and synced.`,
+      'success'
+    );
+
+    return newWorker;
+  };
+
+  // Worker Instant Wallet Updater (Fixes Cashout crash)
+  const updateWorkerWallet = (workerId, newWallet) => {
+    setWorkers(prev =>
+      prev.map(w => {
+        if (w.id === workerId) {
+          return {
+            ...w,
+            wallet: { ...w.wallet, ...newWallet }
+          };
+        }
+        return w;
+      })
+    );
+    api.updateWorkerWallet(workerId, newWallet).catch(console.warn);
+    addNotification('Coop Wallet Updated', 'Funds transferred to verified UPI account.', 'success');
+  };
+
+  // Worker Accepts Gig
+  const acceptJobByWorker = (bookingId, workerObj = activeWorker) => {
+    const updates = {
+      workerId: workerObj.id,
+      workerName: workerObj.name,
+      workerPhone: workerObj.phone,
+      workerAvatar: workerObj.avatar,
+      workerRating: workerObj.rating,
+      workerSociety: workerObj.societyName,
+      workerLocation: { ...workerObj.location },
+      status: 'ACCEPTED',
+      etaMins: 10
+    };
+
+    setBookings(prev =>
+      prev.map(b => (b.id === bookingId ? { ...b, ...updates } : b))
+    );
+    setActiveBookingId(bookingId);
+    api.updateBooking(bookingId, updates).catch(console.warn);
+
+    addNotification(
+      'Gig Accepted!',
+      `You accepted gig #${bookingId}. Customer notified.`,
+      'match'
+    );
+
+    speechService.speak(
+      `कार्य स्वीकार किया गया! ग्राहक ${workerObj.name} की प्रतीक्षा कर रहे हैं।`,
+      'hi'
+    );
+  };
 
   // 1. Create a New Booking
   const createBooking = (service, subService, bookingDetails) => {
@@ -211,8 +455,8 @@ export function AppStateProvider({ children }) {
       serviceTitle: service.title,
       subServiceName: subService ? subService.name : service.title,
       customerId: customer.id,
-      customerName: customer.name,
-      customerPhone: customer.phone,
+      customerName: bookingDetails.customerName || customer.name,
+      customerPhone: bookingDetails.customerPhone || customer.phone,
       customerAddress: bookingDetails.address || customer.address,
       customerLocation: bookingDetails.location || customer.location,
       scheduledTime: bookingDetails.scheduledTime || 'Immediate (Express Dispatch)',
@@ -239,14 +483,22 @@ export function AppStateProvider({ children }) {
       'broadcast'
     );
 
+    // Allow 15 seconds for a connected real worker (Friend B) to accept the incoming gig.
+    // If no real worker accepts within 15 seconds, fallback to auto-assign candidate for single-player demo.
     setTimeout(() => {
-      autoAssignWorker(bookingId, service.id, newBooking.customerLocation);
-    }, 2500);
+      setBookings(current => {
+        const target = current.find(b => b.id === bookingId);
+        if (target && target.status === 'BROADCASTING') {
+          autoAssignWorker(bookingId, service.id, target.customerLocation);
+        }
+        return current;
+      });
+    }, 15000);
 
     return bookingId;
   };
 
-  // 2. Auto-Assign Candidate Workers
+  // 2. Auto-Assign Candidate Workers (Fallback for Solo Demo)
   const autoAssignWorker = (bookingId, serviceId, customerLoc) => {
     const matched = findBestMatchingWorkers(serviceId, customerLoc, workers);
     const topCandidate = matched.length > 0 ? matched[0] : workers[0];
@@ -485,22 +737,31 @@ export function AppStateProvider({ children }) {
         dbStatus,
         customer,
         setCustomer,
+        updateCustomerProfile,
         detectUserLocation,
         isLocating,
+        detectWorkerLocation,
+        isWorkerLocating,
+        simulateWorkerNearCustomer,
         workers,
         setWorkers,
         activeWorker,
         setActiveWorkerId,
+        registerWorker,
+        updateWorkerWallet,
         services,
         bookings,
         activeBookingId,
         setActiveBookingId,
         activeBooking,
+        pendingBroadcastingGigs,
         createBooking,
+        acceptJobByWorker,
         updateBookingStatus,
         submitReview,
         proposals,
         castVote,
+        voteOnProposal: castVote,
         disputes,
         resolveDispute,
         welfareMetrics,

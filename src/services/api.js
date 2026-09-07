@@ -1,8 +1,7 @@
 // Frontend API Client for SahakarGig (Express + MongoDB)
 
-const API_BASE_URL = typeof window !== 'undefined' && window.location.port === '3000'
-  ? 'http://localhost:5000/api'
-  : '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL 
+  || (typeof window !== 'undefined' && window.location.port === '3000' ? 'http://localhost:5000/api' : '/api');
 
 async function fetchJson(endpoint, options = {}) {
   try {
@@ -41,6 +40,12 @@ export const api = {
   },
   getWorker: async (id) => {
     return await fetchJson(`/workers/${id}`);
+  },
+  registerWorker: async (workerData) => {
+    return await fetchJson('/workers', {
+      method: 'POST',
+      body: JSON.stringify(workerData),
+    });
   },
   updateWorkerWallet: async (id, walletData) => {
     return await fetchJson(`/workers/${id}/wallet`, {
@@ -94,11 +99,11 @@ export const api = {
     });
   },
 
-  // Welfare & Ministry
+  // Welfare Metrics
   getWelfareMetrics: async () => {
     return await fetchJson('/welfare');
   },
   getMinistryStats: async () => {
     return await fetchJson('/ministry-stats');
-  }
+  },
 };

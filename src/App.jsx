@@ -6,8 +6,9 @@ import { CustomerPortal } from './components/customer/CustomerPortal';
 import { WorkerPortal } from './components/worker/WorkerPortal';
 import { CooperativePortal } from './components/cooperative/CooperativePortal';
 import { MinistryPortal } from './components/ministry/MinistryPortal';
-import { PitchGuideModal } from './components/common/PitchGuideModal';
-import { ArchitectureModal } from './components/common/ArchitectureModal';
+import { PresentationGuideModal as PitchGuideModal } from './components/docs/PresentationGuideModal';
+import { ArchitectureDiagramModal as ArchitectureModal } from './components/docs/ArchitectureDiagramModal';
+import { RoleWelcomeModal } from './components/common/RoleWelcomeModal';
 import { Star, ShieldCheck, Heart } from 'lucide-react';
 import { getTranslation } from './services/translations';
 
@@ -15,6 +16,13 @@ export function App() {
   const { currentRole, setCurrentRole, language } = useAppState();
   const [isPitchGuideOpen, setIsPitchGuideOpen] = useState(false);
   const [isArchitectureOpen, setIsArchitectureOpen] = useState(false);
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(() => {
+    try {
+      return !localStorage.getItem('sahakar_user_role');
+    } catch (e) {
+      return false;
+    }
+  });
 
   const t = getTranslation(language);
 
@@ -25,6 +33,13 @@ export function App() {
       <Navbar
         onOpenPitchGuide={() => setIsPitchGuideOpen(true)}
         onOpenArchitecture={() => setIsArchitectureOpen(true)}
+        onOpenRoleModal={() => setIsRoleModalOpen(true)}
+      />
+
+      {/* Role Selection & Onboarding Modal */}
+      <RoleWelcomeModal
+        isOpen={isRoleModalOpen}
+        onClose={() => setIsRoleModalOpen(false)}
       />
 
       {/* Main Content Area */}

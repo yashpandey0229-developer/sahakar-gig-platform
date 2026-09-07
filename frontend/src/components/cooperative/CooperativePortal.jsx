@@ -17,9 +17,10 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
+import { WelfareFundPool } from './WelfareFundPool';
 
 export function CooperativePortal() {
-  const { proposals, voteOnProposal, disputes, resolveDispute, activeWorker } = useAppState();
+  const { proposals, voteOnProposal, castVote, disputes, resolveDispute, activeWorker } = useAppState();
   const [activeTab, setActiveTab] = useState('proposals');
   const [selectedDispute, setSelectedDispute] = useState(null);
   const [verdictText, setVerdictText] = useState('');
@@ -30,6 +31,14 @@ export function CooperativePortal() {
     resolveDispute(selectedDispute.id, verdictText || 'Resolved amicably by peer worker jury chamber with 50-50 goodwill settlement.');
     setSelectedDispute(null);
     setVerdictText('');
+  };
+
+  const handleVote = (proposalId, voteType) => {
+    if (typeof voteOnProposal === 'function') {
+      voteOnProposal(proposalId, voteType);
+    } else if (typeof castVote === 'function') {
+      castVote(proposalId, voteType);
+    }
   };
 
   return (
@@ -50,7 +59,7 @@ export function CooperativePortal() {
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center bg-slate-100 border border-slate-200 rounded-2xl p-1.5 shadow-sm">
+        <div className="flex flex-wrap items-center bg-slate-100 border border-slate-200 rounded-2xl p-1.5 shadow-sm">
           <button
             onClick={() => setActiveTab('proposals')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
@@ -61,6 +70,18 @@ export function CooperativePortal() {
           >
             <Vote className="w-3.5 h-3.5" />
             <span>Policy Proposals ({proposals.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('welfare')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+              activeTab === 'welfare'
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Health & Welfare Pool</span>
           </button>
 
           <button
@@ -136,13 +157,13 @@ export function CooperativePortal() {
                     ) : (
                       <>
                         <button
-                          onClick={() => voteOnProposal(prop.id, 'yes')}
+                          onClick={() => handleVote(prop.id, 'yes')}
                           className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-md transition"
                         >
                           Vote YES
                         </button>
                         <button
-                          onClick={() => voteOnProposal(prop.id, 'no')}
+                          onClick={() => handleVote(prop.id, 'no')}
                           className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs rounded-xl shadow-md transition"
                         >
                           Vote NO
@@ -155,6 +176,11 @@ export function CooperativePortal() {
             })}
           </div>
         </div>
+      )}
+
+      {/* Tab 2: Collective Welfare & Health Fund Pool */}
+      {activeTab === 'welfare' && (
+        <WelfareFundPool />
       )}
 
       {/* Tab 2: Disputes */}

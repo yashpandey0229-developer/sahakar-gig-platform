@@ -19,6 +19,39 @@ import { useAppState } from '../../context/AppStateContext';
 export function MinistryPortal() {
   const { ministryStats, welfareMetrics, workers, proposals, disputes } = useAppState();
 
+  const handleExportAudit = () => {
+    const csvContent = [
+      ['SahakarGig National Cooperative Oversight Dossier (SIH26089)'],
+      ['Ministry of Cooperation, Government of India - Statutory Audit'],
+      ['Exported At', new Date().toISOString()],
+      [],
+      ['Metric', 'Statutory Value', 'Unit / Benchmark'],
+      ['Registered Cooperatives (PACS / MSCS)', ministryStats.registeredCooperatives, 'Federated Units'],
+      ['Active Cooperative Artisans', ministryStats.activeWorkers, 'Verified NSDC Level 3+'],
+      ['Collective Welfare Reserve Corpus', `₹${ministryStats.welfareReserveFund}`, 'DCCB Escrow Pool (7% Per Gig)'],
+      ['Patronage Dividends Paid Out', `₹${ministryStats.totalPatronageDividendsDistributed}`, 'Distributed to Workers (100% Surplus)'],
+      ['Average Worker Hourly Uplift', `+${welfareMetrics.averageWorkerHourlyUplift || 38.4}%`, 'Compared to Private Aggregators'],
+      ['Health Insurance Claims Settled', welfareMetrics.healthInsuranceClaimsSettled || 14, '100% Cashless Approvals'],
+      ['Tool Subsidies Granted', welfareMetrics.toolSubsidiesDisbursed || 38, 'Electricians & Plumbers'],
+      [],
+      ['State', 'Active PACS', 'Artisan Count', 'Monthly GMV (₹)'],
+      ['Maharashtra', '64', '8,420', '48,50,000'],
+      ['Gujarat', '42', '5,110', '32,10,000'],
+      ['Karnataka', '38', '4,300', '26,80,000'],
+      ['Madhya Pradesh', '29', '3,450', '19,40,000'],
+      ['Tamil Nadu', '24', '2,980', '16,20,000']
+    ].map(row => row.map(item => `"${item}"`).join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `SahakarGig_Ministry_Audit_Dossier_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
@@ -41,7 +74,7 @@ export function MinistryPortal() {
 
         <div className="flex gap-2">
           <button
-            onClick={() => alert('Exporting SIH Official Compliance Report as PDF...')}
+            onClick={handleExportAudit}
             className="px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black shadow-lg shadow-blue-600/25 flex items-center gap-2 transition"
           >
             <Download className="w-4 h-4" />

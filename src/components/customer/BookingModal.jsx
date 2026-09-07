@@ -44,6 +44,8 @@ export function BookingModal({ service, isOpen, onClose, onBookingSuccess }) {
     setIsSubmitting(true);
     setTimeout(() => {
       const bookingId = createBooking(service, selectedSubService, {
+        customerName: customer.name,
+        customerPhone: customer.phone,
         address,
         location: customer.location,
         scheduledTime: scheduleType === 'express' ? 'Immediate Express (ETA 10-15m)' : selectedDate,
@@ -56,7 +58,7 @@ export function BookingModal({ service, isOpen, onClose, onBookingSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in">
       <div className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
         
         {/* Modal Header */}

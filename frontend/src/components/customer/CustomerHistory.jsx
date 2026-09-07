@@ -126,7 +126,7 @@ export function CustomerHistory({ onSelectBooking }) {
 
       {/* Rate & Review Modal */}
       {selectedBookingForReview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in">
           <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-2xl">
             <h3 className="text-xl font-black text-slate-900 font-['Outfit']">
               Rate {selectedBookingForReview.workerName}

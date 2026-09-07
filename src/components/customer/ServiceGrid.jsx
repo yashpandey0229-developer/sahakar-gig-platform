@@ -223,36 +223,103 @@ export function ServiceGrid({ onSelectService, onOpenPriceModal }) {
 
           </div>
 
-          {/* Right Column: Stitched Artisan Member Card */}
+          {/* Right Column: Urban Company Style Consumer Trust & Top Services Showcase */}
           <div className="lg:col-span-5 flex justify-center lg:justify-end">
-            <div className="stitched-card rotate-1 hover:rotate-0 transition-transform duration-300 p-8 rounded-2xl w-full max-w-sm relative">
+            <div className="bg-white border border-slate-200 shadow-xl rounded-3xl p-6 sm:p-8 w-full max-w-md space-y-6">
               
-              {/* Inner Content */}
-              <div className="py-6 flex flex-col items-center text-center space-y-4">
-                
-                {/* Circular Red Heart Stamp */}
-                <div className="w-28 h-28 stamp-circle flex flex-col items-center justify-center p-3 relative">
-                  <Heart className="w-6 h-6 fill-transparent stroke-[#C05621] mb-1" />
-                  <span className="text-[9px] font-mono tracking-widest font-bold uppercase text-[#C05621] leading-tight whitespace-pre-line">
-                    {t.verifiedArtisan}
-                  </span>
+              {/* Trust & Rating Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="flex text-amber-500">
+                    {'★'.repeat(5)}
+                  </div>
+                  <span className="text-sm font-black text-slate-900">4.88</span>
                 </div>
+                <span className="text-xs text-slate-500 font-medium">
+                  25,000+ Happy Homes Served
+                </span>
+              </div>
 
-                <div>
-                  <h4 className="text-xs font-mono font-medium text-slate-700">
-                    {t.artisanName}
-                  </h4>
-                  <div className="text-base font-bold font-editorial text-[#16202C] mt-1">
-                    {t.memberId}
+              {/* Instant Category Shortcuts */}
+              <div className="space-y-3">
+                <span className="text-xs font-black text-slate-900 uppercase tracking-wider block">
+                  Most Booked This Week in Your Area:
+                </span>
+
+                <div 
+                  onClick={() => {
+                    const serv = services.find(s => s.id === 'electrical') || services[0];
+                    onSelectService(serv);
+                  }}
+                  className="cursor-pointer p-3 rounded-2xl bg-[#FAF7F0] hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition flex items-center justify-between group"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">⚡</span>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-emerald-800">
+                        Electrician Inspection & Repair
+                      </h4>
+                      <p className="text-[11px] text-slate-500">Short-circuit, switches, fans</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-black text-[#1B4D3E]">₹399</span>
+                    <span className="text-[10px] text-slate-400 block">Book &rarr;</span>
                   </div>
                 </div>
 
+                <div 
+                  onClick={() => {
+                    const serv = services.find(s => s.id === 'plumbing') || services[0];
+                    onSelectService(serv);
+                  }}
+                  className="cursor-pointer p-3 rounded-2xl bg-[#FAF7F0] hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition flex items-center justify-between group"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🚰</span>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-emerald-800">
+                        Plumbing & Tap Leakage Fix
+                      </h4>
+                      <p className="text-[11px] text-slate-500">Taps, blockages, fittings</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-black text-[#1B4D3E]">₹349</span>
+                    <span className="text-[10px] text-slate-400 block">Book &rarr;</span>
+                  </div>
+                </div>
+
+                <div 
+                  onClick={() => {
+                    const serv = services.find(s => s.id === 'ac-repair') || services[0];
+                    onSelectService(serv);
+                  }}
+                  className="cursor-pointer p-3 rounded-2xl bg-[#FAF7F0] hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition flex items-center justify-between group"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">❄️</span>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-emerald-800">
+                        AC Foam-Jet Deep Service
+                      </h4>
+                      <p className="text-[11px] text-slate-500">Power jet wash, cooling test</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-black text-[#1B4D3E]">₹599</span>
+                    <span className="text-[10px] text-slate-400 block">Book &rarr;</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Card Footer */}
-              <div className="pt-4 border-t border-[#EBE5D8] flex items-center justify-between text-[9px] font-mono text-slate-400 uppercase tracking-widest">
-                <span>{t.issuedDate}</span>
-                <span>{t.hubCity}</span>
+              {/* Quality Guarantee Strip */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-600">
+                <span className="flex items-center gap-1.5 font-bold text-emerald-800">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  15-Min Doorstep Arrival
+                </span>
+                <span className="font-medium">30-Day Guarantee</span>
               </div>
 
             </div>
