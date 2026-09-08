@@ -375,11 +375,119 @@ router.get('/ministry-stats', (req, res) => {
 });
 
 // ==========================================
-// 9. Real OTP Authentication (Email & SMS/WhatsApp)
+// 9. Real OTP Authentication (Email APIs & SMTP)
 // ==========================================
 const otpStore = new Map();
 
-// Helper to create Nodemailer transporter if credentials provided
+// Official Security Email HTML Template
+const getOtpEmailHtml = ({ otp, name, role, recipient }) => `
+  <div style="background-color: #f8fafc; padding: 40px 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    <div style="max-width: 520px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+      
+      <!-- Official Header -->
+      <div style="background: linear-gradient(135deg, #111C26 0%, #1B4D3E 100%); padding: 32px 24px; text-align: center;">
+        <div style="display: inline-block; width: 44px; height: 44px; line-height: 44px; background-color: rgba(255,255,255,0.15); border-radius: 50%; color: #ffffff; font-size: 20px; font-weight: bold; margin-bottom: 12px;">
+          ★
+        </div>
+        <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Sahakar<span style="color: #6ee7b7; font-style: italic;">Gig</span></h1>
+        <p style="margin: 6px 0 0 0; color: #cbd5e1; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">
+          Official Cooperative Two-Factor Authentication
+        </p>
+      </div>
+
+      <!-- Content Body -->
+      <div style="padding: 36px 32px; text-align: center;">
+        <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 20px; font-weight: 700;">
+          ${name ? `Hello ${name}!` : 'Verify Your Identity'}
+        </h2>
+        <p style="margin: 0 0 24px 0; color: #475569; font-size: 14px; line-height: 1.5;">
+          Use the following single-use verification passcode to authenticate your <strong>${role === 'worker' ? 'Cooperative Partner' : 'Citizen App'}</strong> account:
+        </p>
+
+        <!-- Passcode Box -->
+        <div style="background-color: #f0fdf4; border: 2px dashed #86efac; border-radius: 14px; padding: 22px; margin: 24px 0;">
+          <div style="font-size: 40px; font-weight: 800; letter-spacing: 10px; color: #1B4D3E; font-family: 'Courier New', Courier, monospace; margin-left: 10px;">
+            ${otp}
+          </div>
+          <div style="margin-top: 10px; color: #15803d; font-size: 12px; font-weight: 700;">
+            ⏱ Valid for 10 minutes only
+          </div>
+        </div>
+
+        <!-- Security Advisory -->
+        <div style="background-color: #fff1f2; border: 1px solid #fecdd3; border-radius: 10px; padding: 14px; margin-top: 24px; text-align: left;">
+          <p style="margin: 0; color: #9f1239; font-size: 12px; line-height: 1.4;">
+            <strong>Security Advisory:</strong> Sahakar officers or administrators will NEVER ask for this passcode. If you did not initiate this login request, please discard this email immediately.
+          </p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 24px; text-align: center; color: #94a3b8; font-size: 11px; line-height: 1.5;">
+        This message was sent to <strong>${recipient}</strong> • Democratic Gig Work Protocol<br/>
+        Ministry of Cooperation Initiative • Government of India
+      </div>
+    </div>
+  </div>
+`;
+
+// API Method 1: Brevo REST API (https://brevo.com - free tier sends to ANY email in the world)
+async function sendEmailViaBrevo({ to, otp, name, role }) {
+  const apiKey = (process.env.BREVO_API_KEY || '').trim();
+  if (!apiKey) return null;
+
+  const senderEmail = (process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'sahakar.gig.auth@gmail.com').trim();
+  const senderName = process.env.BREVO_SENDER_NAME || 'SahakarGig Security';
+
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': apiKey,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: senderName, email: senderEmail },
+      to: [{ email: to }],
+      subject: `[SahakarGig] ${otp} is your verification passcode`,
+      htmlContent: getOtpEmailHtml({ otp, name, role, recipient: to })
+    })
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.message || `Brevo API HTTP ${res.status}`);
+  }
+  return await res.json();
+}
+
+// API Method 2: Resend REST API (https://resend.com)
+async function sendEmailViaResend({ to, otp, name, role }) {
+  const apiKey = (process.env.RESEND_API_KEY || '').trim();
+  if (!apiKey) return null;
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: process.env.RESEND_FROM || 'SahakarGig <onboarding@resend.dev>',
+      to: [to],
+      subject: `[SahakarGig] ${otp} is your verification passcode`,
+      html: getOtpEmailHtml({ otp, name, role, recipient: to })
+    })
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.message || `Resend API HTTP ${res.status}`);
+  }
+  return await res.json();
+}
+
+// Method 3: Helper to create Nodemailer transporter (Gmail / SMTP)
 const getMailTransporter = () => {
   const user = (process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
   const pass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || process.env.GMAIL_PASSWORD || '').replace(/\s+/g, '');
@@ -429,81 +537,64 @@ router.post('/auth/send-otp', async (req, res) => {
 
   console.log(`[OTP Generated] ${type.toUpperCase()} for ${normalizedKey}: ${otp}`);
 
-  // Channel: EMAIL AUTHENTICATOR
-  const transporter = getMailTransporter();
   let emailSent = false;
   let emailError = null;
+  let providerUsed = 'none';
 
-  if (transporter) {
+  // 1. Try Brevo REST API if configured
+  if (process.env.BREVO_API_KEY) {
     try {
-      const senderUser = (process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
-      const mailOptions = {
-        from: process.env.SMTP_FROM || `"SahakarGig Security" <${senderUser}>`,
-        to: normalizedKey,
-        subject: `[SahakarGig] ${otp} is your verification passcode`,
-        html: `
-          <div style="background-color: #f8fafc; padding: 40px 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-            <div style="max-width: 520px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
-              
-              <!-- Official Header -->
-              <div style="background: linear-gradient(135deg, #111C26 0%, #1B4D3E 100%); padding: 32px 24px; text-align: center;">
-                <div style="display: inline-block; width: 44px; height: 44px; line-height: 44px; background-color: rgba(255,255,255,0.15); border-radius: 50%; color: #ffffff; font-size: 20px; font-weight: bold; margin-bottom: 12px;">
-                  ★
-                </div>
-                <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Sahakar<span style="color: #6ee7b7; font-style: italic;">Gig</span></h1>
-                <p style="margin: 6px 0 0 0; color: #cbd5e1; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">
-                  Official Cooperative Two-Factor Authentication
-                </p>
-              </div>
-
-              <!-- Content Body -->
-              <div style="padding: 36px 32px; text-align: center;">
-                <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 20px; font-weight: 700;">
-                  ${name ? `Hello ${name}!` : 'Verify Your Identity'}
-                </h2>
-                <p style="margin: 0 0 24px 0; color: #475569; font-size: 14px; line-height: 1.5;">
-                  Use the following single-use verification passcode to authenticate your <strong>${role === 'worker' ? 'Cooperative Partner' : 'Citizen App'}</strong> account:
-                </p>
-
-                <!-- Passcode Box -->
-                <div style="background-color: #f0fdf4; border: 2px dashed #86efac; border-radius: 14px; padding: 22px; margin: 24px 0;">
-                  <div style="font-size: 40px; font-weight: 800; letter-spacing: 10px; color: #1B4D3E; font-family: 'Courier New', Courier, monospace; margin-left: 10px;">
-                    ${otp}
-                  </div>
-                  <div style="margin-top: 10px; color: #15803d; font-size: 12px; font-weight: 700;">
-                    ⏱ Valid for 10 minutes only
-                  </div>
-                </div>
-
-                <!-- Security Advisory -->
-                <div style="background-color: #fff1f2; border: 1px solid #fecdd3; border-radius: 10px; padding: 14px; margin-top: 24px; text-align: left;">
-                  <p style="margin: 0; color: #9f1239; font-size: 12px; line-height: 1.4;">
-                    <strong>Security Advisory:</strong> Sahakar officers or administrators will NEVER ask for this passcode. If you did not initiate this login request, please discard this email immediately.
-                  </p>
-                </div>
-              </div>
-
-              <!-- Footer -->
-              <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 24px; text-align: center; color: #94a3b8; font-size: 11px; line-height: 1.5;">
-                This message was sent to <strong>${recipient}</strong> • Democratic Gig Work Protocol<br/>
-                Ministry of Cooperation Initiative • Government of India
-              </div>
-            </div>
-          </div>
-        `
-      };
-      await transporter.sendMail(mailOptions);
+      await sendEmailViaBrevo({ to: normalizedKey, otp, name, role });
       emailSent = true;
-      console.log(`[Email Sent] Successfully dispatched real OTP to ${normalizedKey}`);
+      providerUsed = 'Brevo API';
+      console.log(`[Email Sent via Brevo API] Successfully dispatched real OTP to ${normalizedKey}`);
     } catch (err) {
-      console.error(`[Email Error] Failed to dispatch real email to ${normalizedKey}:`, err.message);
-      if (err.code === 'EAUTH') {
-        console.error('[Email Hint] Gmail authentication failed! Make sure 2-Step Verification is ON and generate a 16-character App Password from https://myaccount.google.com/apppasswords');
-      }
+      console.error('[Brevo API Error]:', err.message);
       emailError = err.message;
     }
-  } else {
-    console.warn(`[SMTP Notice] Real email was not sent because SMTP_USER & SMTP_PASS are missing in .env. Configure them to send live emails to any user/sir.`);
+  }
+
+  // 2. Try Resend REST API if configured and not already sent
+  if (!emailSent && process.env.RESEND_API_KEY) {
+    try {
+      await sendEmailViaResend({ to: normalizedKey, otp, name, role });
+      emailSent = true;
+      providerUsed = 'Resend API';
+      console.log(`[Email Sent via Resend API] Successfully dispatched real OTP to ${normalizedKey}`);
+    } catch (err) {
+      console.error('[Resend API Error]:', err.message);
+      emailError = err.message;
+    }
+  }
+
+  // 3. Try Gmail / SMTP via Nodemailer
+  if (!emailSent) {
+    const transporter = getMailTransporter();
+    if (transporter) {
+      try {
+        const senderUser = (process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
+        const mailOptions = {
+          from: process.env.SMTP_FROM || `"SahakarGig Security" <${senderUser}>`,
+          to: normalizedKey,
+          subject: `[SahakarGig] ${otp} is your verification passcode`,
+          html: getOtpEmailHtml({ otp, name, role, recipient: normalizedKey })
+        };
+        await transporter.sendMail(mailOptions);
+        emailSent = true;
+        providerUsed = 'Gmail SMTP';
+        console.log(`[Email Sent via SMTP] Successfully dispatched real OTP to ${normalizedKey}`);
+      } catch (err) {
+        console.error(`[Email Error] Failed to dispatch real email to ${normalizedKey}:`, err.message);
+        if (err.code === 'EAUTH') {
+          console.error('[Email Hint] Gmail authentication failed! Make sure 2-Step Verification is ON and generate a 16-character App Password from https://myaccount.google.com/apppasswords');
+        }
+        emailError = err.message;
+      }
+    }
+  }
+
+  if (!emailSent) {
+    console.warn(`[Email Dispatch Notice] No real email provider active. To deliver live OTP to Sir's inbox, set BREVO_API_KEY or SMTP_USER & SMTP_PASS in backend/.env.`);
   }
 
   return res.json({
@@ -512,9 +603,10 @@ router.post('/auth/send-otp', async (req, res) => {
     recipient: normalizedKey,
     otp,
     realEmailSent: emailSent,
+    provider: providerUsed,
     emailError,
     message: emailSent 
-      ? `Real security code dispatched to ${normalizedKey}` 
+      ? `Real security code dispatched to ${normalizedKey} via ${providerUsed}` 
       : `Passcode generated for ${normalizedKey}. Enter code to verify.`
   });
 });
