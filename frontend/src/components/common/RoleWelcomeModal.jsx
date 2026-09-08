@@ -21,7 +21,9 @@ import {
   KeyRound,
   Send,
   Lock,
-  CheckCheck
+  CheckCheck,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 import { api } from '../../services/api';
@@ -89,6 +91,167 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
   const [workRealEmailSent, setWorkRealEmailSent] = useState(false);
   const [workTimer, setWorkTimer] = useState(0);
 
+  // Password Login & Registration States
+  const [custAuthTab, setCustAuthTab] = useState('login'); // 'login' | 'register'
+  const [custLoginEmail, setCustLoginEmail] = useState(customer?.email || 'priya.sharma@sahakar.org');
+  const [custLoginPassword, setCustLoginPassword] = useState('');
+  const [custLoginError, setCustLoginError] = useState('');
+  const [showCustLoginPassword, setShowCustLoginPassword] = useState(false);
+  const [custRegPassword, setCustRegPassword] = useState('');
+  const [showCustRegPassword, setShowCustRegPassword] = useState(false);
+
+  const [workAuthTab, setWorkAuthTab] = useState('login'); // 'login' | 'register'
+  const [workLoginEmail, setWorkLoginEmail] = useState(activeWorker?.email || 'ramesh.jadhav@coop.org');
+  const [workLoginPassword, setWorkLoginPassword] = useState('');
+  const [workLoginError, setWorkLoginError] = useState('');
+  const [showWorkLoginPassword, setShowWorkLoginPassword] = useState(false);
+  const [workRegPassword, setWorkRegPassword] = useState('');
+  const [showWorkRegPassword, setShowWorkRegPassword] = useState(false);
+
+  // Helper: Get Saved Registered Accounts from LocalStorage
+  const getRegisteredAccounts = () => {
+    try {
+      const saved = localStorage.getItem('sahakar_registered_accounts');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [
+      {
+        role: 'customer',
+        email: 'priya.sharma@sahakar.org',
+        password: 'sahakar123',
+        name: 'Priya Sharma',
+        phone: '+91 98221 55601',
+        address: 'Flat 402, Rohan Heights, FC Road, Shivajinagar, Pune',
+        id: 'CIT-MH-501'
+      },
+      {
+        role: 'worker',
+        email: 'ramesh.jadhav@coop.org',
+        password: 'sahakar123',
+        name: 'Ramesh Jadhav',
+        phone: '+91 98230 44819',
+        skill: 'electrical',
+        societyName: 'Pune Urban Multi-Trade Cooperative',
+        cooperativeMemberId: 'COOP-MH-4819',
+        address: 'Pune Urban Sector'
+      }
+    ];
+  };
+
+  const saveRegisteredAccount = (account) => {
+    const list = getRegisteredAccounts();
+    const existingIdx = list.findIndex(
+      a => a.email.toLowerCase() === account.email.toLowerCase() && a.role === account.role
+    );
+    let updated;
+    if (existingIdx >= 0) {
+      list[existingIdx] = { ...list[existingIdx], ...account };
+      updated = list;
+    } else {
+      updated = [account, ...list];
+    }
+    try {
+      localStorage.setItem('sahakar_registered_accounts', JSON.stringify(updated));
+    } catch (e) {}
+    return updated;
+  };
+
+  // Instant Password Login Handler for Customer
+  const handleCustPasswordLogin = (e) => {
+    e.preventDefault();
+    setCustLoginError('');
+    const email = (custLoginEmail || '').trim().toLowerCase();
+    const pass = (custLoginPassword || '').trim();
+
+    if (!email || !pass) {
+      setCustLoginError('Please enter both email and password.');
+      return;
+    }
+
+    const accounts = getRegisteredAccounts();
+    const match = accounts.find(a => a.role === 'customer' && a.email.toLowerCase() === email);
+
+    if ((match && (match.password === pass || pass === 'sahakar123')) || (!match && pass === 'sahakar123')) {
+      const resolvedName = match?.name || (email.split('@')[0].replace('.', ' ').toUpperCase());
+      const resolvedId = match?.id || ('CIT-MH-' + Math.floor(1000 + Math.random() * 9000));
+      const resolvedPhone = match?.phone || '+91 98221 55601';
+      const resolvedAddress = match?.address || 'Shivajinagar, Pune';
+
+      updateCustomerProfile({
+        id: resolvedId,
+        name: resolvedName,
+        email: email,
+        phone: resolvedPhone,
+        address: resolvedAddress
+      });
+
+      setCurrentRole('customer');
+      try {
+        localStorage.setItem('sahakar_user_role', 'customer');
+        localStorage.setItem('sahakar_active_session', JSON.stringify({ email, role: 'customer', name: resolvedName }));
+      } catch (err) {}
+
+      addNotification('Instant Login Successful', `Welcome back, ${resolvedName}! Logged in via password.`, 'success');
+      setMode('select');
+      onClose();
+    } else {
+      setCustLoginError('Invalid password. Demo password is "sahakar123" or click "Register with Email OTP" to set your password.');
+    }
+  };
+
+  // Instant Password Login Handler for Worker
+  const handleWorkPasswordLogin = async (e) => {
+    e.preventDefault();
+    setWorkLoginError('');
+    const email = (workLoginEmail || '').trim().toLowerCase();
+    const pass = (workLoginPassword || '').trim();
+
+    if (!email || !pass) {
+      setWorkLoginError('Please enter both email and password.');
+      return;
+    }
+
+    const accounts = getRegisteredAccounts();
+    const match = accounts.find(a => a.role === 'worker' && a.email.toLowerCase() === email);
+
+    if ((match && (match.password === pass || pass === 'sahakar123')) || (!match && pass === 'sahakar123')) {
+      const resolvedName = match?.name || 'Ramesh Jadhav';
+      const resolvedMemberId = match?.cooperativeMemberId || 'COOP-MH-4819';
+      const resolvedPhone = match?.phone || '+91 98230 44819';
+
+      const existingWorker = workers.find(w => w.email?.toLowerCase() === email);
+      if (existingWorker) {
+        setActiveWorkerId(existingWorker.id);
+      } else {
+        await registerWorker({
+          name: resolvedName,
+          email: email,
+          phone: resolvedPhone,
+          skills: [match?.skill || 'electrical'],
+          societyName: match?.societyName || 'Pune Urban Multi-Trade Cooperative',
+          cooperativeMemberId: resolvedMemberId,
+          bankAccountMasked: '•••• 7712 (UPI Verified)',
+          address: match?.address || 'Pune Urban Sector'
+        });
+      }
+
+      setCurrentRole('worker');
+      try {
+        localStorage.setItem('sahakar_user_role', 'worker');
+        localStorage.setItem('sahakar_active_session', JSON.stringify({ email, role: 'worker', name: resolvedName }));
+      } catch (err) {}
+
+      addNotification('Partner Login Successful', `Welcome back, ${resolvedName}! On duty with 10km radar.`, 'success');
+      setMode('select');
+      onClose();
+    } else {
+      setWorkLoginError('Invalid password. Demo password is "sahakar123" or click "Register with Email OTP" to set your password.');
+    }
+  };
+
   // Countdown Timers
   useEffect(() => {
     let interval = null;
@@ -112,6 +275,8 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
       setMode(initialMode || 'select');
       setCustStep('form');
       setWorkStep('form');
+      setCustLoginError('');
+      setWorkLoginError('');
 
       setCustForm({
         name: customer?.name || '',
@@ -119,6 +284,8 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
         phone: customer?.phone || '+91 98221 55601',
         address: customer?.address || 'Flat 402, Rohan Heights, FC Road, Shivajinagar, Pune'
       });
+      setCustLoginEmail(customer?.email || 'priya.sharma@sahakar.org');
+
       setCustomCitizenId(customer?.id || ('CIT-MH-' + Math.floor(1000 + Math.random() * 9000)));
 
       setWorkForm({
@@ -130,6 +297,8 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
         bankAccountMasked: activeWorker?.bankAccountMasked || '•••• 7712 (UPI Verified)',
         address: activeWorker?.address || 'Pune Urban Sector'
       });
+      setWorkLoginEmail(activeWorker?.email || 'ramesh.jadhav@coop.org');
+
       setCustomWorkerMemberId(
         activeWorker?.cooperativeMemberId || ('COOP-MH-' + Math.floor(1000 + Math.random() * 9000))
       );
@@ -332,6 +501,16 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
     const finalAddress = custForm.address.trim() || customer?.address || 'Shivajinagar, Pune';
     const finalId = customCitizenId || customer?.id || ('CIT-MH-' + Math.floor(1000 + Math.random() * 9000));
 
+    saveRegisteredAccount({
+      role: 'customer',
+      id: finalId,
+      name: finalName,
+      email: finalEmail,
+      password: custRegPassword || 'sahakar123',
+      phone: finalPhone,
+      address: finalAddress
+    });
+
     updateCustomerProfile({
       id: finalId,
       name: finalName,
@@ -343,8 +522,10 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
     setCurrentRole('customer');
     try {
       localStorage.setItem('sahakar_user_role', 'customer');
+      localStorage.setItem('sahakar_active_session', JSON.stringify({ email: finalEmail, role: 'customer', name: finalName }));
     } catch (e) {}
 
+    addNotification('Citizen Registered & Password Set', `Account saved! You can now log in instantly using your password.`, 'success');
     setMode('select');
     onClose();
   };
@@ -362,6 +543,18 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
     const finalPhone = workForm.phone.trim() || '+91 98230 44819';
     const finalMemberId = customWorkerMemberId || ('COOP-MH-' + Math.floor(1000 + Math.random() * 9000));
 
+    saveRegisteredAccount({
+      role: 'worker',
+      email: finalEmail,
+      password: workRegPassword || 'sahakar123',
+      name: finalName,
+      phone: finalPhone,
+      skill: workForm.skill,
+      societyName: workForm.societyName || 'Pune Urban Multi-Trade Cooperative',
+      cooperativeMemberId: finalMemberId,
+      address: workForm.address || 'Pune Urban Sector'
+    });
+
     await registerWorker({
       name: finalName,
       email: finalEmail,
@@ -377,8 +570,10 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
     setCurrentRole('worker');
     try {
       localStorage.setItem('sahakar_user_role', 'worker');
+      localStorage.setItem('sahakar_active_session', JSON.stringify({ email: finalEmail, role: 'worker', name: finalName }));
     } catch (e) {}
 
+    addNotification('Partner Registered & Password Set', `Account saved! You can now log in instantly using your password.`, 'success');
     setMode('select');
     onClose();
   };
@@ -435,9 +630,9 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
 
             <h2 className="text-2xl sm:text-3xl font-black font-editorial tracking-tight text-white">
               {mode === 'customer' ? (
-                <span>Citizen Email <span className="text-emerald-400 italic">Authenticator</span></span>
+                <span>Citizen Portal <span className="text-emerald-400 italic">Login & Access</span></span>
               ) : mode === 'worker' ? (
-                <span>Artisan Partner <span className="text-amber-400 italic">Authenticator</span></span>
+                <span>Artisan Partner <span className="text-amber-400 italic">Login & Portal</span></span>
               ) : (
                 <span>Welcome to Sahakar<span className="text-emerald-400 italic">Gig</span></span>
               )}
@@ -446,9 +641,9 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
 
           <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto mt-1.5 leading-relaxed font-sans">
             {mode === 'customer'
-              ? 'Real email verification for home service receipts and citizen ID isolation.'
+              ? 'Instant password login or authentic email OTP registration for verified citizens.'
               : mode === 'worker'
-              ? 'Official cooperative email authentication for artisan ledger and 88% direct payout.'
+              ? 'Instant partner password login or cooperative onboarding for 88% direct payouts.'
               : 'Please choose your portal or register your teammate. Data is strictly isolated.'}
           </p>
         </div>
@@ -581,536 +776,902 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
             </div>
           )}
 
-          {/* VIEW 2A: CUSTOMER EMAIL AUTHENTICATOR (STEP: OTP) */}
-          {mode === 'customer' && custStep === 'otp' && (
-            <div className="max-w-md mx-auto bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xl text-center space-y-5 animate-in zoom-in-95 duration-200">
-              <div className="w-16 h-16 mx-auto rounded-3xl bg-emerald-100 text-[#1B4D3E] flex items-center justify-center text-3xl shadow-sm ring-8 ring-emerald-50">
-                <ShieldCheck className="w-9 h-9 text-[#1B4D3E]" />
-              </div>
-
-              <div className="space-y-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full font-mono">
-                  Two-Factor Security Passcode
-                </span>
-                <h3 className="text-2xl font-black text-slate-900 font-['Outfit'] pt-2">
-                  Check your Email
-                </h3>
-                <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
-                  We have sent an official 6-digit verification code to:
-                  <br />
-                  <span className="font-bold text-slate-900 font-mono text-sm">{custForm.email}</span>
-                </p>
-              </div>
-
-              {/* Status Notice */}
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-[11px] text-emerald-950 flex items-center justify-between">
-                <span>
-                  {custRealEmailSent 
-                    ? '✉️ Security email sent to your inbox!' 
-                    : `Passcode: ${custGeneratedOtp}`}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setCustStep('form')}
-                  className="text-emerald-700 font-bold hover:underline"
-                >
-                  Edit Email
-                </button>
-              </div>
-
-              {/* 6-Digit Code Input */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700 block text-left">
-                  Enter 6-Digit Passcode (6 अंकों का कोड दर्ज करें)
-                </label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  autoFocus
-                  placeholder="• • • • • •"
-                  value={custInputOtp}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    setCustInputOtp(val);
-                    if (val.length === 6) {
-                      handleVerifyCustOtp(val);
-                    }
-                  }}
-                  className="w-full text-center text-3xl font-mono font-black tracking-[12px] py-3.5 rounded-2xl border-2 border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 bg-emerald-50/30 text-[#1B4D3E]"
-                />
-                <p className="text-[11px] text-slate-400">
-                  Passcode expires in 10 minutes. Check your Spam folder if not in primary inbox.
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="space-y-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => handleVerifyCustOtp(custInputOtp)}
-                  className="w-full py-3.5 rounded-2xl bg-[#1B4D3E] hover:bg-[#143c30] text-white text-xs font-black shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Verify Passcode & Continue</span>
-                </button>
-
-                <div className="flex items-center justify-between text-xs pt-1 text-slate-500">
-                  <span>Didn't receive code?</span>
-                  {custTimer > 0 ? (
-                    <span className="font-mono font-bold text-slate-600">
-                      Resend in 00:{custTimer < 10 ? `0${custTimer}` : custTimer}
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSendCustEmailOtp}
-                      disabled={custEmailSending}
-                      className="font-bold text-emerald-700 hover:underline flex items-center gap-1"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      <span>Resend Passcode</span>
-                    </button>
-                  )}
+          {/* ========================================================= */}
+          {/* VIEW 2: CUSTOMER / CITIZEN AUTHENTICATION & LOGIN         */}
+          {/* ========================================================= */}
+          {mode === 'customer' && (
+            <div className="space-y-4">
+              {/* Tab Selector: Instant Password Login vs Register / Set Password */}
+              <div className="max-w-md mx-auto">
+                <div className="flex p-1 bg-slate-200/80 rounded-2xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustAuthTab('login');
+                      setCustStep('form');
+                      setCustLoginError('');
+                    }}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                      custAuthTab === 'login'
+                        ? 'bg-white text-[#1B4D3E] shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>⚡ Instant Password Login</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustAuthTab('register');
+                      setCustLoginError('');
+                    }}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                      custAuthTab === 'register'
+                        ? 'bg-white text-[#1B4D3E] shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>📧 Register & Set Password (OTP)</span>
+                  </button>
                 </div>
               </div>
+
+              {/* TAB 1: INSTANT PASSWORD LOGIN */}
+              {custAuthTab === 'login' && (
+                <form onSubmit={handleCustPasswordLogin} className="space-y-4 max-w-md mx-auto bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-xl animate-in zoom-in-95">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#1B4D3E] flex items-center justify-center text-lg font-bold">
+                        🔐
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-slate-900 font-['Outfit']">Instant Password Login</h4>
+                        <span className="text-[10px] text-slate-500 font-mono">No OTP wait · Permanent device login</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                      ⚡ FAST LOGIN
+                    </span>
+                  </div>
+
+                  {custLoginError && (
+                    <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                      {custLoginError}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Citizen Registered Email / ईमेल पता *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        required
+                        value={custLoginEmail}
+                        onChange={(e) => setCustLoginEmail(e.target.value)}
+                        placeholder="e.g. priya.sharma@sahakar.org or your email"
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Account Password / पासवर्ड *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showCustLoginPassword ? 'text' : 'password'}
+                        required
+                        value={custLoginPassword}
+                        onChange={(e) => setCustLoginPassword(e.target.value)}
+                        placeholder="Enter password (Demo pass: sahakar123)"
+                        className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+                      />
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                      <button
+                        type="button"
+                        onClick={() => setShowCustLoginPassword(!showCustLoginPassword)}
+                        className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                        title={showCustLoginPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showCustLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-500">
+                      <span>Universal demo pass: <strong className="text-emerald-700 font-mono">sahakar123</strong></span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustLoginEmail('priya.sharma@sahakar.org');
+                          setCustLoginPassword('sahakar123');
+                        }}
+                        className="text-emerald-700 hover:underline font-bold"
+                      >
+                        Auto-fill Demo
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 space-y-2">
+                    <button
+                      type="submit"
+                      className="w-full py-3 rounded-2xl bg-[#1B4D3E] hover:bg-[#143c30] text-white text-xs font-black shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      <span>⚡ Log In with Password (पासवर्ड से तुरंत लॉगिन)</span>
+                    </button>
+
+                    <div className="text-center pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setCustAuthTab('register')}
+                        className="text-xs text-emerald-800 font-bold hover:underline"
+                      >
+                        Need an account or password? Register & verify with OTP →
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              )}
+
+              {/* TAB 2: REGISTER & SET PASSWORD VIA EMAIL OTP */}
+              {custAuthTab === 'register' && (
+                <div>
+                  {/* Step A: OTP Passcode Screen */}
+                  {custStep === 'otp' && (
+                    <div className="max-w-md mx-auto bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xl text-center space-y-5 animate-in zoom-in-95 duration-200">
+                      <div className="w-16 h-16 mx-auto rounded-3xl bg-emerald-100 text-[#1B4D3E] flex items-center justify-center text-3xl shadow-sm ring-8 ring-emerald-50">
+                        <ShieldCheck className="w-9 h-9 text-[#1B4D3E]" />
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full font-mono">
+                          Two-Factor Security Passcode
+                        </span>
+                        <h3 className="text-2xl font-black text-slate-900 font-['Outfit'] pt-2">
+                          Check your Email
+                        </h3>
+                        <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
+                          We have sent an official 6-digit verification code to:
+                          <br />
+                          <span className="font-bold text-slate-900 font-mono text-sm">{custForm.email}</span>
+                        </p>
+                      </div>
+
+                      {/* Status Notice */}
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-[11px] text-emerald-950 flex items-center justify-between">
+                        <span>
+                          {custRealEmailSent 
+                            ? '✉️ Security email sent to your inbox!' 
+                            : `Passcode: ${custGeneratedOtp}`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setCustStep('form')}
+                          className="text-emerald-700 font-bold hover:underline"
+                        >
+                          Edit Email
+                        </button>
+                      </div>
+
+                      {/* 6-Digit Code Input */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-700 block text-left">
+                          Enter 6-Digit Passcode (6 अंकों का कोड दर्ज करें)
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          autoFocus
+                          placeholder="• • • • • •"
+                          value={custInputOtp}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            setCustInputOtp(val);
+                            if (val.length === 6) {
+                              handleVerifyCustOtp(val);
+                            }
+                          }}
+                          className="w-full text-center text-3xl font-mono font-black tracking-[12px] py-3.5 rounded-2xl border-2 border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 bg-emerald-50/30 text-[#1B4D3E]"
+                        />
+                        <p className="text-[11px] text-slate-400">
+                          Passcode expires in 10 minutes. Check your Spam folder if not in primary inbox.
+                        </p>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="space-y-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => handleVerifyCustOtp(custInputOtp)}
+                          className="w-full py-3.5 rounded-2xl bg-[#1B4D3E] hover:bg-[#143c30] text-white text-xs font-black shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Verify Passcode & Continue</span>
+                        </button>
+
+                        <div className="flex items-center justify-between text-xs pt-1 text-slate-500">
+                          <span>Didn't receive code?</span>
+                          {custTimer > 0 ? (
+                            <span className="font-mono font-bold text-slate-600">
+                              Resend in 00:{custTimer < 10 ? `0${custTimer}` : custTimer}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleSendCustEmailOtp}
+                              disabled={custEmailSending}
+                              className="font-bold text-emerald-700 hover:underline flex items-center gap-1"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              <span>Resend Passcode</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step B: Form Screen with Password Input */}
+                  {custStep === 'form' && (
+                    <form onSubmit={handleCustomerSubmit} className="space-y-4 max-w-lg mx-auto bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-100 text-[#1B4D3E] flex items-center justify-center text-lg font-bold">
+                            🏠
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-900">Register Citizen & Set Password</h4>
+                            <span className="text-[10px] text-slate-500 font-mono">Verify once via OTP · Login with password anytime</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">
+                            {customCitizenId}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setCustomCitizenId('CIT-MH-' + Math.floor(1000 + Math.random() * 9000))}
+                            className="p-1 text-slate-400 hover:text-emerald-700 transition"
+                            title="Generate New Random ID"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Full Name / आपका नाम (या Teammate का नाम) *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={custForm.name}
+                          onChange={(e) => setCustForm({ ...custForm, name: e.target.value })}
+                          placeholder="e.g. Yash Pandey or Teammate Name"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Email Authentication Row */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                            <Mail className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Email Address (ऑथेंटिकेशन ईमेल) *</span>
+                          </label>
+                          {custEmailVerified && (
+                            <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified Email
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <input
+                            type="email"
+                            required
+                            value={custForm.email}
+                            onChange={(e) => {
+                              setCustForm({ ...custForm, email: e.target.value });
+                              setCustEmailVerified(false);
+                            }}
+                            placeholder="teammate@example.com"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                          />
+                          {!custEmailVerified ? (
+                            <button
+                              type="button"
+                              onClick={handleSendCustEmailOtp}
+                              disabled={custEmailSending}
+                              className="px-4 py-2 rounded-xl bg-[#1B4D3E] hover:bg-[#143c30] text-white text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 shadow-sm"
+                            >
+                              {custEmailSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                              <span>Send OTP</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleSendCustEmailOtp}
+                              className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition"
+                            >
+                              Change
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Set Account Password for Future Logins */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                            <Lock className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Create Account Password (पासवर्ड बनाएं - अगली बार डायरेक्ट लॉगिन के लिए) *</span>
+                          </label>
+                        </div>
+                        <div className="relative">
+                          <input
+                            type={showCustRegPassword ? 'text' : 'password'}
+                            value={custRegPassword}
+                            onChange={(e) => setCustRegPassword(e.target.value)}
+                            placeholder="e.g. sahakar123 or choose your secret password"
+                            className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+                          />
+                          <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                          <button
+                            type="button"
+                            onClick={() => setShowCustRegPassword(!showCustRegPassword)}
+                            className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                            title={showCustRegPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showCustRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          💡 Once registered, you will NEVER have to wait for an OTP again! Just enter this password to log in.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Mobile Number / फोन नंबर *
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          value={custForm.phone}
+                          onChange={(e) => setCustForm({ ...custForm, phone: e.target.value })}
+                          placeholder="+91 98221 00000"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-mono font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-bold text-slate-700">
+                            Service Address / Street *
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handleCustomerGps}
+                            disabled={isLocating}
+                            className="text-[11px] text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1"
+                          >
+                            {isLocating ? <Loader2 className="w-3 h-3 animate-spin" /> : <MapPin className="w-3 h-3" />}
+                            <span>{isLocating ? 'Detecting...' : 'Detect Real GPS'}</span>
+                          </button>
+                        </div>
+                        <textarea
+                          rows={2}
+                          required
+                          value={custForm.address}
+                          onChange={(e) => setCustForm({ ...custForm, address: e.target.value })}
+                          placeholder="Flat No, Building Name, Street, Area, Pune"
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="pt-3 space-y-2">
+                        <button
+                          type="submit"
+                          className="w-full py-3 rounded-2xl bg-[#1B4D3E] hover:bg-[#143c30] text-white text-xs font-black shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition"
+                        >
+                          <Check className="w-4 h-4" />
+                          <span>
+                            {custEmailVerified ? 'Save Password & Enter Citizen App' : 'Verify Email & Save Password'}
+                          </span>
+                        </button>
+
+                        <div className="text-center pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setCustAuthTab('login')}
+                            className="text-xs text-slate-600 hover:text-slate-900 font-bold hover:underline"
+                          >
+                            Already set your password? Switch to Instant Password Login →
+                          </button>
+                        </div>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
-          {/* VIEW 2B: CUSTOMER REGISTRATION / PROFILE FORM (STEP: FORM) */}
-          {mode === 'customer' && custStep === 'form' && (
-            <form onSubmit={handleCustomerSubmit} className="space-y-4 max-w-lg mx-auto bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-[#1B4D3E] flex items-center justify-center text-lg font-bold">
-                    🏠
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-900">Citizen Profile & Email</h4>
-                    <span className="text-[10px] text-slate-500 font-mono">Real teammate demo account</span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">
-                    {customCitizenId}
-                  </span>
+          {/* ========================================================= */}
+          {/* VIEW 3: WORKER PARTNER AUTHENTICATION & LOGIN              */}
+          {/* ========================================================= */}
+          {mode === 'worker' && (
+            <div className="space-y-4">
+              {/* Tab Selector: Instant Password Login vs Register Partner */}
+              <div className="max-w-md mx-auto">
+                <div className="flex p-1 bg-slate-200/80 rounded-2xl">
                   <button
                     type="button"
-                    onClick={() => setCustomCitizenId('CIT-MH-' + Math.floor(1000 + Math.random() * 9000))}
-                    className="p-1 text-slate-400 hover:text-emerald-700 transition"
-                    title="Generate New Random ID"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Full Name / आपका नाम (या Teammate का नाम) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={custForm.name}
-                  onChange={(e) => setCustForm({ ...custForm, name: e.target.value })}
-                  placeholder="e.g. Yash Pandey or Teammate Name"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              {/* Email Authentication Row */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                    <Mail className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Email Address (ऑथेंटिकेशन ईमेल) *</span>
-                  </label>
-                  {custEmailVerified && (
-                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified Email
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    required
-                    value={custForm.email}
-                    onChange={(e) => {
-                      setCustForm({ ...custForm, email: e.target.value });
-                      setCustEmailVerified(false);
+                    onClick={() => {
+                      setWorkAuthTab('login');
+                      setWorkStep('form');
+                      setWorkLoginError('');
                     }}
-                    placeholder="teammate@example.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-                  {!custEmailVerified ? (
-                    <button
-                      type="button"
-                      onClick={handleSendCustEmailOtp}
-                      disabled={custEmailSending}
-                      className="px-4 py-2 rounded-xl bg-[#1B4D3E] hover:bg-[#143c30] text-white text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 shadow-sm"
-                    >
-                      {custEmailSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                      <span>Send OTP</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSendCustEmailOtp}
-                      className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition"
-                    >
-                      Change
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Mobile Number / फोन नंबर *
-                </label>
-                <input
-                  type="tel"
-                  required
-                  value={custForm.phone}
-                  onChange={(e) => setCustForm({ ...custForm, phone: e.target.value })}
-                  placeholder="+91 98221 00000"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-mono font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-slate-700">
-                    Service Address / Street *
-                  </label>
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                      workAuthTab === 'login'
+                        ? 'bg-white text-amber-900 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>⚡ Instant Partner Login</span>
+                  </button>
                   <button
                     type="button"
-                    onClick={handleCustomerGps}
-                    disabled={isLocating}
-                    className="text-[11px] text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1"
+                    onClick={() => {
+                      setWorkAuthTab('register');
+                      setWorkLoginError('');
+                    }}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                      workAuthTab === 'register'
+                        ? 'bg-white text-amber-900 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
                   >
-                    {isLocating ? <Loader2 className="w-3 h-3 animate-spin" /> : <MapPin className="w-3 h-3" />}
-                    <span>{isLocating ? 'Detecting...' : 'Detect Real GPS'}</span>
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>🧰 Register Partner & Set Password (OTP)</span>
                   </button>
                 </div>
-                <textarea
-                  rows={2}
-                  required
-                  value={custForm.address}
-                  onChange={(e) => setCustForm({ ...custForm, address: e.target.value })}
-                  placeholder="Flat No, Building Name, Street, Area, Pune"
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                />
               </div>
 
-              <div className="pt-3 space-y-2">
-                <button
-                  type="submit"
-                  className="w-full py-3 rounded-2xl bg-[#1B4D3E] hover:bg-[#143c30] text-white text-xs font-black shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition"
-                >
-                  <Check className="w-4 h-4" />
-                  <span>
-                    {custEmailVerified ? 'Save & Continue as Citizen' : 'Verify Email & Continue'}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoRole('customer')}
-                  className="w-full py-2 rounded-xl text-slate-600 hover:text-slate-900 text-xs font-bold border border-slate-200 hover:bg-slate-50 transition"
-                >
-                  ⚡ Fast Demo: Use Priya Sharma (priya.sharma@sahakar.org)
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* VIEW 3A: WORKER EMAIL AUTHENTICATOR (STEP: OTP) */}
-          {mode === 'worker' && workStep === 'otp' && (
-            <div className="max-w-md mx-auto bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xl text-center space-y-5 animate-in zoom-in-95 duration-200">
-              <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-100 text-amber-800 flex items-center justify-center text-3xl shadow-sm ring-8 ring-amber-50">
-                <ShieldCheck className="w-9 h-9 text-amber-800" />
-              </div>
-
-              <div className="space-y-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-amber-900 bg-amber-100 px-3 py-1 rounded-full font-mono">
-                  Partner Security Passcode
-                </span>
-                <h3 className="text-2xl font-black text-slate-900 font-['Outfit'] pt-2">
-                  Check Partner Email
-                </h3>
-                <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
-                  We have sent an official 6-digit cooperative passcode to:
-                  <br />
-                  <span className="font-bold text-slate-900 font-mono text-sm">{workForm.email}</span>
-                </p>
-              </div>
-
-              {/* Status Notice */}
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-[11px] text-amber-950 flex items-center justify-between">
-                <span>
-                  {workRealEmailSent 
-                    ? '✉️ Security email sent to partner inbox!' 
-                    : `Passcode: ${workGeneratedOtp}`}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setWorkStep('form')}
-                  className="text-amber-800 font-bold hover:underline"
-                >
-                  Edit Email
-                </button>
-              </div>
-
-              {/* 6-Digit Code Input */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700 block text-left">
-                  Enter 6-Digit Passcode (6 अंकों का कोड दर्ज करें)
-                </label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  autoFocus
-                  placeholder="• • • • • •"
-                  value={workInputOtp}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    setWorkInputOtp(val);
-                    if (val.length === 6) {
-                      handleVerifyWorkOtp(val);
-                    }
-                  }}
-                  className="w-full text-center text-3xl font-mono font-black tracking-[12px] py-3.5 rounded-2xl border-2 border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/20 bg-amber-50/30 text-amber-950"
-                />
-                <p className="text-[11px] text-slate-400">
-                  Passcode expires in 10 minutes. Check Spam if not in primary inbox.
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="space-y-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => handleVerifyWorkOtp(workInputOtp)}
-                  className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Verify Passcode & Continue</span>
-                </button>
-
-                <div className="flex items-center justify-between text-xs pt-1 text-slate-500">
-                  <span>Didn't receive code?</span>
-                  {workTimer > 0 ? (
-                    <span className="font-mono font-bold text-slate-600">
-                      Resend in 00:{workTimer < 10 ? `0${workTimer}` : workTimer}
+              {/* TAB 1: INSTANT WORKER PASSWORD LOGIN */}
+              {workAuthTab === 'login' && (
+                <form onSubmit={handleWorkPasswordLogin} className="space-y-4 max-w-md mx-auto bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-xl animate-in zoom-in-95">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg font-bold">
+                        🧰
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-slate-900 font-['Outfit']">Instant Partner HUD Login</h4>
+                        <span className="text-[10px] text-slate-500 font-mono">Direct shift start · 88% payout ledger</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">
+                      ⚡ FAST LOGIN
                     </span>
-                  ) : (
+                  </div>
+
+                  {workLoginError && (
+                    <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                      {workLoginError}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Partner Cooperative Email / ईमेल पता *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        required
+                        value={workLoginEmail}
+                        onChange={(e) => setWorkLoginEmail(e.target.value)}
+                        placeholder="e.g. ramesh.jadhav@coop.org or your partner email"
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      />
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Account Password / पासवर्ड *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showWorkLoginPassword ? 'text' : 'password'}
+                        required
+                        value={workLoginPassword}
+                        onChange={(e) => setWorkLoginPassword(e.target.value)}
+                        placeholder="Enter partner password (Demo pass: sahakar123)"
+                        className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none font-mono"
+                      />
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                      <button
+                        type="button"
+                        onClick={() => setShowWorkLoginPassword(!showWorkLoginPassword)}
+                        className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                        title={showWorkLoginPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showWorkLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-500">
+                      <span>Universal demo pass: <strong className="text-amber-800 font-mono">sahakar123</strong></span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWorkLoginEmail('ramesh.jadhav@coop.org');
+                          setWorkLoginPassword('sahakar123');
+                        }}
+                        className="text-amber-800 hover:underline font-bold"
+                      >
+                        Auto-fill Demo
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 space-y-2">
                     <button
-                      type="button"
-                      onClick={handleSendWorkEmailOtp}
-                      disabled={workEmailSending}
-                      className="font-bold text-amber-800 hover:underline flex items-center gap-1"
+                      type="submit"
+                      className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition"
                     >
-                      <RefreshCw className="w-3 h-3" />
-                      <span>Resend Passcode</span>
+                      <LogIn className="w-4 h-4" />
+                      <span>⚡ Log In to Partner HUD (पार्टनर लॉगिन)</span>
                     </button>
+
+                    <div className="text-center pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setWorkAuthTab('register')}
+                        className="text-xs text-amber-900 font-bold hover:underline"
+                      >
+                        New partner? Register & set cooperative password with OTP →
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              )}
+
+              {/* TAB 2: REGISTER PARTNER & SET PASSWORD VIA EMAIL OTP */}
+              {workAuthTab === 'register' && (
+                <div>
+                  {/* Step A: Partner OTP Screen */}
+                  {workStep === 'otp' && (
+                    <div className="max-w-md mx-auto bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xl text-center space-y-5 animate-in zoom-in-95 duration-200">
+                      <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-100 text-amber-800 flex items-center justify-center text-3xl shadow-sm ring-8 ring-amber-50">
+                        <ShieldCheck className="w-9 h-9 text-amber-800" />
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-900 bg-amber-100 px-3 py-1 rounded-full font-mono">
+                          Partner Security Passcode
+                        </span>
+                        <h3 className="text-2xl font-black text-slate-900 font-['Outfit'] pt-2">
+                          Check Partner Email
+                        </h3>
+                        <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
+                          We have sent an official 6-digit cooperative passcode to:
+                          <br />
+                          <span className="font-bold text-slate-900 font-mono text-sm">{workForm.email}</span>
+                        </p>
+                      </div>
+
+                      {/* Status Notice */}
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-[11px] text-amber-950 flex items-center justify-between">
+                        <span>
+                          {workRealEmailSent 
+                            ? '✉️ Security email sent to partner inbox!' 
+                            : `Passcode: ${workGeneratedOtp}`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setWorkStep('form')}
+                          className="text-amber-800 font-bold hover:underline"
+                        >
+                          Edit Email
+                        </button>
+                      </div>
+
+                      {/* 6-Digit Code Input */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-700 block text-left">
+                          Enter 6-Digit Passcode (6 अंकों का कोड दर्ज करें)
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          autoFocus
+                          placeholder="• • • • • •"
+                          value={workInputOtp}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            setWorkInputOtp(val);
+                            if (val.length === 6) {
+                              handleVerifyWorkOtp(val);
+                            }
+                          }}
+                          className="w-full text-center text-3xl font-mono font-black tracking-[12px] py-3.5 rounded-2xl border-2 border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/20 bg-amber-50/30 text-amber-950"
+                        />
+                        <p className="text-[11px] text-slate-400">
+                          Passcode expires in 10 minutes. Check Spam if not in primary inbox.
+                        </p>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="space-y-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => handleVerifyWorkOtp(workInputOtp)}
+                          className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Verify Passcode & Continue</span>
+                        </button>
+
+                        <div className="flex items-center justify-between text-xs pt-1 text-slate-500">
+                          <span>Didn't receive code?</span>
+                          {workTimer > 0 ? (
+                            <span className="font-mono font-bold text-slate-600">
+                              Resend in 00:{workTimer < 10 ? `0${workTimer}` : workTimer}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleSendWorkEmailOtp}
+                              disabled={workEmailSending}
+                              className="font-bold text-amber-800 hover:underline flex items-center gap-1"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              <span>Resend Passcode</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step B: Partner Form with Password Input */}
+                  {workStep === 'form' && (
+                    <form onSubmit={handleWorkerSubmit} className="space-y-4 max-w-lg mx-auto bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg font-bold">
+                            🧰
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-900">Partner Profile & Password</h4>
+                            <span className="text-[10px] text-slate-500 font-mono">Verify once via OTP · Direct shift access anytime</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-mono font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300">
+                            {customWorkerMemberId}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setCustomWorkerMemberId('COOP-MH-' + Math.floor(1000 + Math.random() * 9000))}
+                            className="p-1 text-slate-400 hover:text-amber-700 transition"
+                            title="Generate New Member ID"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Full Name / आपका नाम (या Teammate का नाम) *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={workForm.name}
+                          onChange={(e) => setWorkForm({ ...workForm, name: e.target.value })}
+                          placeholder="e.g. Ramesh Jadhav or Partner Name"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Email Authentication Row */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                            <Mail className="w-3.5 h-3.5 text-amber-700" />
+                            <span>Partner Email Address (ईमेल पता) *</span>
+                          </label>
+                          {workEmailVerified && (
+                            <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified Email
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <input
+                            type="email"
+                            required
+                            value={workForm.email}
+                            onChange={(e) => {
+                              setWorkForm({ ...workForm, email: e.target.value });
+                              setWorkEmailVerified(false);
+                            }}
+                            placeholder="teammate.partner@coop.org"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                          />
+                          {!workEmailVerified ? (
+                            <button
+                              type="button"
+                              onClick={handleSendWorkEmailOtp}
+                              disabled={workEmailSending}
+                              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black whitespace-nowrap transition flex items-center gap-1.5 shadow-sm"
+                            >
+                              {workEmailSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                              <span>Send OTP</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleSendWorkEmailOtp}
+                              className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition"
+                            >
+                              Change
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Set Partner Account Password */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                            <Lock className="w-3.5 h-3.5 text-amber-700" />
+                            <span>Create Partner Password (पासवर्ड बनाएं - अगली बार डायरेक्ट लॉगिन के लिए) *</span>
+                          </label>
+                        </div>
+                        <div className="relative">
+                          <input
+                            type={showWorkRegPassword ? 'text' : 'password'}
+                            value={workRegPassword}
+                            onChange={(e) => setWorkRegPassword(e.target.value)}
+                            placeholder="e.g. sahakar123 or choose your secret password"
+                            className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none font-mono"
+                          />
+                          <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                          <button
+                            type="button"
+                            onClick={() => setShowWorkRegPassword(!showWorkRegPassword)}
+                            className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                            title={showWorkRegPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showWorkRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          💡 Once registered, you will NEVER have to wait for an OTP again! Just enter this password to log in.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Phone / मोबाइल नंबर *
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          value={workForm.phone}
+                          onChange={(e) => setWorkForm({ ...workForm, phone: e.target.value })}
+                          placeholder="+91 98230 00000"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-mono font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            Primary Trade / व्यवसाय *
+                          </label>
+                          <select
+                            value={workForm.skill}
+                            onChange={(e) => setWorkForm({ ...workForm, skill: e.target.value })}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white"
+                          >
+                            <option value="electrical">⚡ Electrical & Power Systems</option>
+                            <option value="plumbing">🔧 Plumbing & Water Systems</option>
+                            <option value="ac-repair">❄️ AC Service & Climate Tech</option>
+                            <option value="deep-cleaning">✨ Deep House Cleaning</option>
+                            <option value="carpentry">🪚 Carpentry & Furniture</option>
+                            <option value="painting">🎨 Painting & Wall Decor</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            Affiliated Cooperative Society / सोसायटी
+                          </label>
+                          <input
+                            type="text"
+                            value={workForm.societyName}
+                            onChange={(e) => setWorkForm({ ...workForm, societyName: e.target.value })}
+                            placeholder="Pune Urban Multi-Trade Cooperative"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            Bank / UPI Direct Payout Account
+                          </label>
+                          <input
+                            type="text"
+                            value={workForm.bankAccountMasked}
+                            onChange={(e) => setWorkForm({ ...workForm, bankAccountMasked: e.target.value })}
+                            placeholder="•••• 7712 (UPI Verified)"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-mono font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            Live Radar Location
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handleWorkerGps}
+                            disabled={isWorkerLocating}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold flex items-center justify-center gap-1 transition"
+                          >
+                            {isWorkerLocating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5 text-amber-700" />}
+                            <span>{isWorkerLocating ? 'Pinning GPS...' : 'Pin Live GPS Radar'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 space-y-2">
+                        <button
+                          type="submit"
+                          className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition"
+                        >
+                          <Check className="w-4 h-4" />
+                          <span>
+                            {workEmailVerified ? 'Register Partner & Save Password' : 'Verify Email & Save Password'}
+                          </span>
+                        </button>
+
+                        <div className="text-center pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setWorkAuthTab('login')}
+                            className="text-xs text-slate-600 hover:text-slate-900 font-bold hover:underline"
+                          >
+                            Already set your password? Switch to Instant Partner Login →
+                          </button>
+                        </div>
+                      </div>
+                    </form>
                   )}
                 </div>
-              </div>
+              )}
             </div>
-          )}
-
-          {/* VIEW 3B: WORKER REGISTRATION / PROFILE FORM (STEP: FORM) */}
-          {mode === 'worker' && workStep === 'form' && (
-            <form onSubmit={handleWorkerSubmit} className="space-y-4 max-w-lg mx-auto bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg font-bold">
-                    🧰
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-900">Partner Profile & Email</h4>
-                    <span className="text-[10px] text-slate-500 font-mono">Real teammate artisan account</span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-mono font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300">
-                    {customWorkerMemberId}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCustomWorkerMemberId('COOP-MH-' + Math.floor(1000 + Math.random() * 9000))}
-                    className="p-1 text-slate-400 hover:text-amber-700 transition"
-                    title="Generate New Member ID"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Full Name / आपका नाम (या Teammate का नाम) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={workForm.name}
-                  onChange={(e) => setWorkForm({ ...workForm, name: e.target.value })}
-                  placeholder="e.g. Ramesh Jadhav or Partner Name"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                />
-              </div>
-
-              {/* Email Authentication Row */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                    <Mail className="w-3.5 h-3.5 text-amber-700" />
-                    <span>Partner Email Address (ईमेल पता) *</span>
-                  </label>
-                  {workEmailVerified && (
-                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified Email
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    required
-                    value={workForm.email}
-                    onChange={(e) => {
-                      setWorkForm({ ...workForm, email: e.target.value });
-                      setWorkEmailVerified(false);
-                    }}
-                    placeholder="teammate.partner@coop.org"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                  />
-                  {!workEmailVerified ? (
-                    <button
-                      type="button"
-                      onClick={handleSendWorkEmailOtp}
-                      disabled={workEmailSending}
-                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black whitespace-nowrap transition flex items-center gap-1.5 shadow-sm"
-                    >
-                      {workEmailSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                      <span>Send OTP</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSendWorkEmailOtp}
-                      className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition"
-                    >
-                      Change
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Phone / मोबाइल नंबर *
-                </label>
-                <input
-                  type="tel"
-                  required
-                  value={workForm.phone}
-                  onChange={(e) => setWorkForm({ ...workForm, phone: e.target.value })}
-                  placeholder="+91 98230 00000"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-mono font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Primary Trade / व्यवसाय *
-                  </label>
-                  <select
-                    value={workForm.skill}
-                    onChange={(e) => setWorkForm({ ...workForm, skill: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white"
-                  >
-                    <option value="electrical">⚡ Electrical & Power Systems</option>
-                    <option value="plumbing">🔧 Plumbing & Water Systems</option>
-                    <option value="ac-repair">❄️ AC Service & Climate Tech</option>
-                    <option value="deep-cleaning">✨ Deep House Cleaning</option>
-                    <option value="carpentry">🪚 Carpentry & Furniture</option>
-                    <option value="painting">🎨 Painting & Wall Decor</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Affiliated Cooperative Society / सोसायटी
-                  </label>
-                  <input
-                    type="text"
-                    value={workForm.societyName}
-                    onChange={(e) => setWorkForm({ ...workForm, societyName: e.target.value })}
-                    placeholder="Pune Urban Multi-Trade Cooperative"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Bank / UPI Direct Payout Account
-                  </label>
-                  <input
-                    type="text"
-                    value={workForm.bankAccountMasked}
-                    onChange={(e) => setWorkForm({ ...workForm, bankAccountMasked: e.target.value })}
-                    placeholder="•••• 7712 (UPI Verified)"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-mono font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Live Radar Location
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleWorkerGps}
-                    disabled={isWorkerLocating}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold flex items-center justify-center gap-1 transition"
-                  >
-                    {isWorkerLocating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5 text-amber-700" />}
-                    <span>{isWorkerLocating ? 'Pinning GPS...' : 'Pin Live GPS Radar'}</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="pt-3 space-y-2">
-                <button
-                  type="submit"
-                  className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition"
-                >
-                  <Check className="w-4 h-4" />
-                  <span>
-                    {workEmailVerified ? 'Register Teammate & Enter HUD' : 'Verify Email & Enter HUD'}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoRole('worker')}
-                  className="w-full py-2 rounded-xl text-slate-600 hover:text-slate-900 text-xs font-bold border border-slate-200 hover:bg-slate-50 transition"
-                >
-                  ⚡ Fast Demo: Use Ramesh Jadhav (ramesh.jadhav@coop.org)
-                </button>
-              </div>
-            </form>
           )}
 
         </div>

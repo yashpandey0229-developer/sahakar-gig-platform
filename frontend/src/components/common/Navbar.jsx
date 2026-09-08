@@ -12,10 +12,12 @@ import {
   Users,
   Building2,
   ShieldCheck,
-  ArrowRightLeft
+  ArrowRightLeft,
+  LifeBuoy
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 import { getTranslation } from '../../services/translations';
+import { HelpSupportModal } from './HelpSupportModal';
 
 export function Navbar({ onOpenArchitecture, onOpenRoleModal }) {
   const { 
@@ -32,6 +34,7 @@ export function Navbar({ onOpenArchitecture, onOpenRoleModal }) {
   } = useAppState();
 
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const t = getTranslation(language);
 
   const toggleLanguage = () => {
@@ -200,6 +203,16 @@ export function Navbar({ onOpenArchitecture, onOpenRoleModal }) {
               {language === 'en' ? '🇮🇳 हिंदी' : '🇬🇧 EN'}
             </button>
 
+            {/* Help & Safety SOS Button */}
+            <button
+              onClick={() => setShowHelpModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-800 text-xs font-bold transition shadow-sm"
+              title="24/7 Helpline & Doorstep SOS"
+            >
+              <LifeBuoy className="w-3.5 h-3.5 text-rose-600 animate-spin-slow" />
+              <span className="hidden sm:inline">Help & SOS</span>
+            </button>
+
             {/* Portal Switcher Dropdown (for accessing board / ministry if needed) */}
             <div className="relative">
               <button
@@ -315,6 +328,12 @@ export function Navbar({ onOpenArchitecture, onOpenRoleModal }) {
 
         </div>
       </div>
+
+      {/* Global Cooperative Help & Support SOS Modal */}
+      <HelpSupportModal
+        isOpen={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
+      />
     </header>
   );
 }

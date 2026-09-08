@@ -17,12 +17,14 @@ import {
   Image as ImageIcon,
   Receipt,
   Printer,
-  X
+  X,
+  LifeBuoy
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 import { LiveMap } from '../common/LiveMap';
 import { speechService } from '../../services/speechService';
 import { CooperativeReceiptModal } from '../common/CooperativeReceiptModal';
+import { HelpSupportModal } from '../common/HelpSupportModal';
 
 export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
   const { 
@@ -38,6 +40,7 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
   const [otpError, setOtpError] = useState('');
   const [successStep, setSuccessStep] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [workerPhoto, setWorkerPhoto] = useState(activeBooking?.completionPhoto || null);
   const workerFileInputRef = React.useRef(null);
 
@@ -142,13 +145,24 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
           </h2>
         </div>
 
-        <button
-          onClick={handleReadoutInstructions}
-          className="px-4 py-2 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-xs text-slate-800 font-bold flex items-center gap-2 transition shadow-sm"
-        >
-          <Volume2 className="w-4 h-4 text-emerald-600" />
-          <span>Read Aloud (हिन्दी)</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowHelpModal(true)}
+            className="px-4 py-2 rounded-2xl bg-rose-50 hover:bg-rose-100 text-xs text-rose-700 border border-rose-200 font-bold flex items-center gap-1.5 transition shadow-sm"
+            title="Emergency SOS & Helpline"
+          >
+            <LifeBuoy className="w-4 h-4 text-rose-600" />
+            <span>Worker SOS / Help</span>
+          </button>
+
+          <button
+            onClick={handleReadoutInstructions}
+            className="px-4 py-2 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-xs text-slate-800 font-bold flex items-center gap-2 transition shadow-sm"
+          >
+            <Volume2 className="w-4 h-4 text-emerald-600" />
+            <span>Read Aloud (हिन्दी)</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Execution Flow Grid */}
@@ -483,6 +497,12 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
         booking={activeBooking}
         isOpen={showReceiptModal}
         onClose={() => setShowReceiptModal(false)}
+      />
+
+      {/* 24x7 Help & Safety SOS Modal */}
+      <HelpSupportModal
+        isOpen={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
       />
 
     </div>
