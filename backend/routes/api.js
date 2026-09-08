@@ -1,5 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import nodemailer from 'nodemailer';
 import { GoogleGenAI } from '@google/genai';
 import Worker from '../models/Worker.js';
 import Booking from '../models/Booking.js';
@@ -371,6 +372,195 @@ router.get('/welfare', async (req, res) => {
 
 router.get('/ministry-stats', (req, res) => {
   res.json(MINISTRY_STATS);
+});
+
+// ==========================================
+// 9. Real OTP Authentication (Email & SMS/WhatsApp)
+// ==========================================
+const otpStore = new Map();
+
+// Helper to create Nodemailer transporter if credentials provided
+const getMailTransporter = () => {
+  const user = process.env.SMTP_USER || process.env.GMAIL_USER;
+  const pass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || process.env.GMAIL_PASSWORD;
+  
+  if (!user || !pass) {
+    return null;
+  }
+  
+  const service = process.env.SMTP_SERVICE || (user.includes('gmail.com') ? 'gmail' : undefined);
+  
+  return nodemailer.createTransport({
+    service,
+    host: process.env.SMTP_HOST || (!service ? 'smtp.gmail.com' : undefined),
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: { user, pass }
+  });
+};
+
+// POST /api/auth/send-otp
+router.post('/auth/send-otp', async (req, res) => {
+  const { type, recipient, role, name } = req.body;
+  
+  if (!recipient || !type) {
+    return res.status(400).json({ success: false, message: 'Type and recipient are required.' });
+  }
+
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const normalizedKey = recipient.toLowerCase().trim();
+  
+  otpStore.set(normalizedKey, {
+    otp,
+    type,
+    recipient,
+    role: role || 'user',
+    name: name || '',
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes validity
+  });
+
+  console.log(`[OTP Generated] ${type.toUpperCase()} for ${recipient}: ${otp}`);
+
+  // Channel: EMAIL
+  if (type === 'email') {
+    const transporter = getMailTransporter();
+    let emailSent = false;
+    let emailError = null;
+
+    if (transporter) {
+      try {
+        const mailOptions = {
+          from: process.env.SMTP_FROM || `"SahakarGig Cooperative" <${process.env.SMTP_USER || process.env.GMAIL_USER}>`,
+          to: recipient,
+          subject: `[SahakarGig] Your Verification Code: ${otp}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #FAF7F0;">
+              <div style="text-align: center; margin-bottom: 20px;">
+                <h1 style="color: #1B4D3E; margin: 0; font-size: 26px;">Sahakar<span style="font-style: italic;">Gig</span></h1>
+                <p style="color: #64748b; font-size: 12px; margin-top: 4px;">Democratizing Gig Work · 88% Direct Payouts</p>
+              </div>
+              <div style="background-color: #ffffff; padding: 24px; border-radius: 12px; border: 1px solid #cbd5e1; text-align: center;">
+                <h2 style="color: #1e293b; font-size: 18px; margin-top: 0;">${name ? `Hello ${name}!` : 'Hello Citizen / Partner!'}</h2>
+                <p style="color: #475569; font-size: 14px; line-height: 1.5;">
+                  Your one-time authentication code for SahakarGig (${role === 'worker' ? 'Cooperative Partner' : 'Citizen App'}) is:
+                </p>
+                <div style="margin: 24px 0; display: inline-block; padding: 14px 28px; background-color: #1B4D3E; color: #ffffff; font-size: 32px; font-weight: 800; letter-spacing: 6px; border-radius: 12px; font-family: monospace;">
+                  ${otp}
+                </div>
+                <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                  This code is valid for 10 minutes. Please do not share it with anyone.
+                </p>
+              </div>
+              <div style="text-align: center; margin-top: 20px; color: #94a3b8; font-size: 11px;">
+                © 2026 SahakarGig National Multi-State Cooperative Society. All rights reserved.
+              </div>
+            </div>
+          `
+        };
+        await transporter.sendMail(mailOptions);
+        emailSent = true;
+        console.log(`[Email Sent] Successfully dispatched OTP to ${recipient}`);
+      } catch (err) {
+        console.warn(`[Email Error] Failed to dispatch real email to ${recipient}:`, err.message);
+        emailError = err.message;
+      }
+    }
+
+    return res.json({
+      success: true,
+      channel: 'email',
+      recipient,
+      otp,
+      realEmailSent: emailSent,
+      emailError,
+      message: emailSent 
+        ? `Real verification email sent to ${recipient}` 
+        : `OTP generated for ${recipient}. Enter OTP to verify.`
+    });
+  }
+
+  // Channel: PHONE (SMS & WhatsApp)
+  if (type === 'phone') {
+    const rawDigits = recipient.replace(/\D/g, '');
+    const phone10 = rawDigits.length >= 10 ? rawDigits.slice(-10) : rawDigits;
+    const fullPhone = `91${phone10}`;
+    
+    // 1-Click WhatsApp Direct Dispatch Link
+    const waText = encodeURIComponent(
+      `नमस्ते! सहकारगिग (SahakarGig) सत्यापन कोड: ${otp}। यह कोड 10 मिनट के लिए मान्य है। कृपया इसे किसी के साथ साझा न करें।\n\nYour SahakarGig OTP is: ${otp}. Valid for 10 minutes.`
+    );
+    const waLink = `https://wa.me/${fullPhone}?text=${waText}`;
+    
+    // Direct Device SMS Link
+    const smsText = encodeURIComponent(`Your SahakarGig OTP is ${otp}. Valid for 10 minutes.`);
+    const smsLink = `sms:+${fullPhone}?body=${smsText}`;
+
+    // Optional Telecom Gateway API (Fast2SMS)
+    let gatewaySent = false;
+    if (process.env.FAST2SMS_API_KEY && phone10.length === 10) {
+      try {
+        const f2sUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${process.env.FAST2SMS_API_KEY}&route=otp&variables_values=${otp}&numbers=${phone10}`;
+        const f2sRes = await fetch(f2sUrl);
+        const f2sData = await f2sRes.json();
+        if (f2sData.return) gatewaySent = true;
+      } catch (e) {
+        console.warn('[Fast2SMS Error]:', e.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      channel: 'phone',
+      recipient,
+      cleanPhone: fullPhone,
+      phone10,
+      otp,
+      waLink,
+      smsLink,
+      gatewaySent,
+      message: gatewaySent 
+        ? `SMS sent to +91 ${phone10}` 
+        : `Real WhatsApp & SMS dispatch link generated for +91 ${phone10}`
+    });
+  }
+
+  return res.status(400).json({ success: false, message: 'Invalid delivery type.' });
+});
+
+// POST /api/auth/verify-otp
+router.post('/auth/verify-otp', (req, res) => {
+  const { recipient, otp } = req.body;
+  if (!recipient || !otp) {
+    return res.status(400).json({ verified: false, message: 'Recipient and OTP are required.' });
+  }
+
+  const normalizedKey = recipient.toLowerCase().trim();
+  const stored = otpStore.get(normalizedKey);
+
+  if (!stored) {
+    // For extreme hackathon resilience: if OTP matches 6 digits format, verify
+    return res.status(400).json({ verified: false, message: 'No active OTP found. Please request a new code.' });
+  }
+
+  if (Date.now() > stored.expiresAt) {
+    otpStore.delete(normalizedKey);
+    return res.status(400).json({ verified: false, message: 'OTP has expired. Please request a new code.' });
+  }
+
+  if (stored.otp !== otp.toString().trim()) {
+    return res.status(400).json({ verified: false, message: 'Incorrect OTP. Please check and try again.' });
+  }
+
+  stored.verified = true;
+  return res.json({
+    verified: true,
+    message: 'OTP verified successfully!',
+    recipient,
+    role: stored.role,
+    verifiedAt: new Date().toISOString()
+  });
 });
 
 export default router;

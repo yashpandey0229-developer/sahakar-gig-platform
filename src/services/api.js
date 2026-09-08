@@ -106,4 +106,18 @@ export const api = {
   getMinistryStats: async () => {
     return await fetchJson('/ministry-stats');
   },
+
+  // Real OTP Authentication (Email & SMS/WhatsApp)
+  sendOtp: async ({ type, recipient, role, name }) => {
+    return await fetchJson('/auth/send-otp', {
+      method: 'POST',
+      body: JSON.stringify({ type, recipient, role, name }),
+    });
+  },
+  verifyOtp: async ({ recipient, otp }) => {
+    return await fetchJson('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ recipient, otp }),
+    });
+  },
 };
