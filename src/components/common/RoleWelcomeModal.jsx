@@ -23,7 +23,10 @@ import {
   Lock,
   CheckCheck,
   Eye,
-  EyeOff
+  EyeOff,
+  Camera,
+  Upload,
+  Trash2
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 import { api } from '../../services/api';
@@ -76,8 +79,10 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
     skill: activeWorker?.skills?.[0] || 'electrical',
     societyName: activeWorker?.societyName || 'Pune Urban Multi-Trade Cooperative',
     bankAccountMasked: activeWorker?.bankAccountMasked || '•••• 7712 (UPI Verified)',
-    address: activeWorker?.address || 'Pune Urban Sector'
+    address: activeWorker?.address || 'Pune Urban Sector',
+    photo: activeWorker?.avatar || ''
   });
+  const [workPhotoError, setWorkPhotoError] = useState('');
   const [customWorkerMemberId, setCustomWorkerMemberId] = useState(
     activeWorker?.cooperativeMemberId || ('COOP-MH-' + Math.floor(1000 + Math.random() * 9000))
   );
@@ -295,8 +300,10 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
         skill: activeWorker?.skills?.[0] || 'electrical',
         societyName: activeWorker?.societyName || 'Pune Urban Multi-Trade Cooperative',
         bankAccountMasked: activeWorker?.bankAccountMasked || '•••• 7712 (UPI Verified)',
-        address: activeWorker?.address || 'Pune Urban Sector'
+        address: activeWorker?.address || 'Pune Urban Sector',
+        photo: activeWorker?.avatar || ''
       });
+      setWorkPhotoError('');
       setWorkLoginEmail(activeWorker?.email || 'ramesh.jadhav@coop.org');
 
       setCustomWorkerMemberId(
@@ -304,6 +311,27 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
       );
     }
   }, [isOpen, initialMode, customer, activeWorker]);
+
+  // Handle Worker Profile Photo Upload
+  const handleWorkerPhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file (JPEG, PNG, WebP).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result;
+      if (typeof dataUrl === 'string') {
+        setWorkForm(prev => ({ ...prev, photo: dataUrl }));
+        setWorkPhotoError('');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   if (!isOpen) return null;
 
@@ -533,6 +561,16 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
   // Submit Worker ID Creation / Registration
   const handleWorkerSubmit = async (e) => {
     e.preventDefault();
+
+    // MANDATORY Worker Profile Photo Validation
+    if (!workForm.photo) {
+      setWorkPhotoError('Worker profile photo is mandatory for cooperative ID card & doorstep police verification.');
+      const el = document.getElementById('worker-photo-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+      alert('Artisan profile photo is mandatory! Please upload your photo to complete registration.');
+      return;
+    }
+
     if (!workEmailVerified) {
       handleSendWorkEmailOtp();
       return;
@@ -542,6 +580,7 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
     const finalEmail = workForm.email.trim() || (workForm.name ? `${workForm.name.toLowerCase().replace(/\s+/g, '.')}@coop.org` : 'partner@coop.org');
     const finalPhone = workForm.phone.trim() || '+91 98230 44819';
     const finalMemberId = customWorkerMemberId || ('COOP-MH-' + Math.floor(1000 + Math.random() * 9000));
+    const finalPhoto = workForm.photo;
 
     saveRegisteredAccount({
       role: 'worker',
@@ -552,7 +591,8 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
       skill: workForm.skill,
       societyName: workForm.societyName || 'Pune Urban Multi-Trade Cooperative',
       cooperativeMemberId: finalMemberId,
-      address: workForm.address || 'Pune Urban Sector'
+      address: workForm.address || 'Pune Urban Sector',
+      avatar: finalPhoto
     });
 
     await registerWorker({
@@ -564,16 +604,17 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
       cooperativeMemberId: finalMemberId,
       bankAccountMasked: workForm.bankAccountMasked || '•••• 7712 (UPI Verified)',
       location: activeWorker?.location || { lat: 18.5298, lng: 73.8472 },
-      address: workForm.address || 'Pune Urban Sector'
+      address: workForm.address || 'Pune Urban Sector',
+      avatar: finalPhoto
     });
 
     setCurrentRole('worker');
     try {
       localStorage.setItem('sahakar_user_role', 'worker');
-      localStorage.setItem('sahakar_active_session', JSON.stringify({ email: finalEmail, role: 'worker', name: finalName }));
+      localStorage.setItem('sahakar_active_session', JSON.stringify({ email: finalEmail, role: 'worker', name: finalName, avatar: finalPhoto }));
     } catch (e) {}
 
-    addNotification('Partner Registered & Password Set', `Account saved! You can now log in instantly using your password.`, 'success');
+    addNotification('Partner Registered & Profile Saved', `Welcome ${finalName}! Photo, Member ID & Password saved successfully.`, 'success');
     setMode('select');
     onClose();
   };
@@ -1474,6 +1515,127 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
                             <RefreshCw className="w-3.5 h-3.5" />
                           </button>
                         </div>
+                      </div>
+
+                      {/* MANDATORY Artisan Profile Photo Section */}
+                      <div id="worker-photo-section" className="space-y-2 p-4 rounded-2xl bg-amber-50/70 border-2 border-dashed border-amber-300">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                            <Camera className="w-4 h-4 text-amber-700" />
+                            <span>Artisan Profile Photo / कारीगर की फोटो *</span>
+                          </label>
+                          <span className="text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200 px-2 py-0.5 rounded-full font-mono">
+                            MANDATORY / अनिवार्य
+                          </span>
+                        </div>
+
+                        {workPhotoError && (
+                          <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-700 text-xs font-bold animate-pulse">
+                            ⚠️ {workPhotoError}
+                          </div>
+                        )}
+
+                        {workForm.photo ? (
+                          <div className="flex items-center gap-4 bg-white p-3 rounded-2xl border border-amber-200 shadow-sm">
+                            <div className="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-emerald-500 shadow-md shrink-0 bg-slate-100">
+                              <img 
+                                src={workForm.photo} 
+                                alt="Worker profile" 
+                                className="w-full h-full object-cover" 
+                              />
+                              <span className="absolute bottom-0 inset-x-0 bg-emerald-600 text-white text-[8px] font-bold text-center py-0.5 font-mono">
+                                VERIFIED
+                              </span>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <span className="text-xs font-bold text-slate-900 block truncate">
+                                Profile Photo Attached
+                              </span>
+                              <span className="text-[10px] text-slate-500 block">
+                                Displayed on your cooperative ID badge & customer dispatch HUD
+                              </span>
+                              <div className="flex items-center gap-3 mt-1.5">
+                                <label className="cursor-pointer text-[11px] font-bold text-amber-800 hover:text-amber-900 hover:underline flex items-center gap-1">
+                                  <Upload className="w-3 h-3" />
+                                  <span>Change Photo</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={handleWorkerPhotoUpload}
+                                  />
+                                </label>
+                                <span className="text-slate-300">|</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setWorkForm(prev => ({ ...prev, photo: '' }))}
+                                  className="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  <span>Remove</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2.5">
+                            <label className="cursor-pointer block border-2 border-dashed border-amber-300 hover:border-amber-500 bg-white hover:bg-amber-50/50 rounded-2xl p-4 text-center transition group">
+                              <div className="w-11 h-11 mx-auto rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center group-hover:scale-105 transition shadow-sm mb-1.5">
+                                <Camera className="w-5 h-5" />
+                              </div>
+                              <span className="text-xs font-bold text-slate-900 block">
+                                Click to Upload Your Profile Photo (Selfie / ID Picture)
+                              </span>
+                              <span className="text-[10px] text-slate-500 block mt-0.5">
+                                JPG, PNG, WebP · Mandatory for police verification & doorstep safety
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handleWorkerPhotoUpload}
+                              />
+                            </label>
+
+                            {/* 1-Click Fast Presets for Testing & Demos */}
+                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                              <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wide">
+                                ⚡ Quick demo photo:
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWorkForm(prev => ({ ...prev, photo: '/images/worker_about.jpg' }));
+                                  setWorkPhotoError('');
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-100 border border-amber-200 text-amber-900 text-[10px] font-bold transition flex items-center gap-1"
+                              >
+                                <span>👨‍🔧 Ramesh</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWorkForm(prev => ({ ...prev, photo: '/images/hero_artisan.jpg' }));
+                                  setWorkPhotoError('');
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-100 border border-amber-200 text-amber-900 text-[10px] font-bold transition flex items-center gap-1"
+                              >
+                                <span>🛠️ Handyman</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWorkForm(prev => ({ ...prev, photo: '/images/electrician.jpg' }));
+                                  setWorkPhotoError('');
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-100 border border-amber-200 text-amber-900 text-[10px] font-bold transition flex items-center gap-1"
+                              >
+                                <span>⚡ Electrician</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div>
