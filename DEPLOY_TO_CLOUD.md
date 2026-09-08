@@ -44,7 +44,7 @@ git push -u origin main
    - **Start Command**: `npm start`
    - **Instance Type**: `Free`
 4. Under **"Environment Variables"**, add:
-   - **`MONGODB_URI`**: `mongodb+srv://admin:Sahakar123%23@cluster0.wb1e7sn.mongodb.net/sahakargig?retryWrites=true&w=majority&appName=Cluster0`
+   - **`MONGODB_URI`**: `mongodb+srv://<username>:<password>@cluster0.wb1e7sn.mongodb.net/sahakargig?retryWrites=true&w=majority`
    - **`PORT`**: `5000`
 5. Click **"Deploy Web Service"**.
 6. Once deployed, Render will give you a public URL (e.g., `https://sahakargig-backend.onrender.com`).

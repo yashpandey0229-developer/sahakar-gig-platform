@@ -1,5 +1,10 @@
 node_modules
 dist
-.env.local
 .DS_Store
 .system_generated
+
+# Environment and Secret Files
+.env
+.env.*
+*.env
+!.env.example

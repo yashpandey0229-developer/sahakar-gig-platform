@@ -1,3 +1,8 @@
 node_modules
-.env.local
 .DS_Store
+
+# Environment and Secret Files
+.env
+.env.*
+*.env
+!.env.example

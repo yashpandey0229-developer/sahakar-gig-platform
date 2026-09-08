@@ -9,6 +9,6 @@ services:
       - key: NODE_ENV
         value: production
       - key: MONGODB_URI
-        value: mongodb+srv://admin:Sahakar123%23@cluster0.wb1e7sn.mongodb.net/sahakargig?retryWrites=true&w=majority&appName=Cluster0
+        sync: false
       - key: PORT
         value: 5000
