@@ -194,20 +194,31 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
       setCustPhoneOtpSent(true);
       setCustPhoneInputOtp(code);
       const clean = custForm.phone.replace(/\D/g, '');
-      const wa = res?.waLink || `https://wa.me/91${clean.slice(-10)}?text=${encodeURIComponent(`नमस्ते! सहकारगिग (SahakarGig) OTP: ${code}। यह कोड 10 मिनट के लिए मान्य है।\n\nYour SahakarGig verification OTP is: ${code}`)}`;
+      const wa = res?.waLink || `https://wa.me/91${clean.slice(-10)}?text=${encodeURIComponent(`नमस्ते! सहकारगिग (SahakarGig) सत्यापन कोड: ${code}। यह कोड 10 मिनट के लिए मान्य है। कृपया इसे किसी के साथ साझा न करें।\n\nYour SahakarGig Verification OTP is: ${code}. Valid for 10 minutes.`)}`;
       setCustPhoneWaLink(wa);
       setCustPhoneSmsLink(res?.smsLink || `sms:+91${clean.slice(-10)}?body=${encodeURIComponent(`Your SahakarGig OTP is ${code}`)}`);
 
+      // Automatically launch WhatsApp with pre-filled OTP message for teammate
+      try {
+        window.open(wa, '_blank');
+      } catch (err) {}
+
       addNotification(
-        'Phone OTP Ready',
-        `Click "Send via WhatsApp" to buzz ${custForm.phone} with code ${code}`,
-        'info'
+        'WhatsApp Launched',
+        `Sending verification code ${code} to ${custForm.phone} via WhatsApp`,
+        'success'
       );
     } catch (e) {
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       setCustGeneratedOtp(code);
       setCustPhoneOtpSent(true);
       setCustPhoneInputOtp(code);
+      const clean = custForm.phone.replace(/\D/g, '');
+      const wa = `https://wa.me/91${clean.slice(-10)}?text=${encodeURIComponent(`नमस्ते! सहकारगिग (SahakarGig) सत्यापन कोड: ${code}। यह कोड 10 मिनट के लिए मान्य है।\n\nYour SahakarGig Verification OTP is: ${code}`)}`;
+      setCustPhoneWaLink(wa);
+      try {
+        window.open(wa, '_blank');
+      } catch (err) {}
     } finally {
       setCustPhoneSending(false);
     }
@@ -300,20 +311,31 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
       setWorkPhoneOtpSent(true);
       setWorkPhoneInputOtp(code);
       const clean = workForm.phone.replace(/\D/g, '');
-      const wa = res?.waLink || `https://wa.me/91${clean.slice(-10)}?text=${encodeURIComponent(`नमस्ते! सहकारगिग (SahakarGig) पार्टनर कोड: ${code}। यह कोड 10 मिनट के लिए मान्य है।\n\nYour SahakarGig Partner OTP is: ${code}`)}`;
+      const wa = res?.waLink || `https://wa.me/91${clean.slice(-10)}?text=${encodeURIComponent(`नमस्ते! सहकारगिग (SahakarGig) पार्टनर कोड: ${code}। यह कोड 10 मिनट के लिए मान्य है। कृपया इसे किसी के साथ साझा न करें।\n\nYour SahakarGig Partner OTP is: ${code}. Valid for 10 minutes.`)}`;
       setWorkPhoneWaLink(wa);
       setWorkPhoneSmsLink(res?.smsLink || `sms:+91${clean.slice(-10)}?body=${encodeURIComponent(`Your SahakarGig Partner OTP is ${code}`)}`);
 
+      // Automatically launch WhatsApp with pre-filled OTP message for teammate
+      try {
+        window.open(wa, '_blank');
+      } catch (err) {}
+
       addNotification(
-        'Partner Phone OTP Ready',
-        `Click "Send via WhatsApp" to buzz ${workForm.phone} with code ${code}`,
-        'info'
+        'WhatsApp Launched',
+        `Sending partner code ${code} to ${workForm.phone} via WhatsApp`,
+        'success'
       );
     } catch (e) {
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       setWorkGeneratedOtp(code);
       setWorkPhoneOtpSent(true);
       setWorkPhoneInputOtp(code);
+      const clean = workForm.phone.replace(/\D/g, '');
+      const wa = `https://wa.me/91${clean.slice(-10)}?text=${encodeURIComponent(`नमस्ते! सहकारगिग (SahakarGig) पार्टनर कोड: ${code}। यह कोड 10 मिनट के लिए मान्य है।\n\nYour SahakarGig Partner OTP is: ${code}`)}`;
+      setWorkPhoneWaLink(wa);
+      try {
+        window.open(wa, '_blank');
+      } catch (err) {}
     } finally {
       setWorkPhoneSending(false);
     }
@@ -723,10 +745,11 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
                     type="button"
                     onClick={handleSendCustPhoneOtp}
                     disabled={custPhoneSending}
-                    className="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#1B4D3E] text-xs font-bold border border-emerald-300 whitespace-nowrap transition flex items-center gap-1"
+                    className="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#1B4D3E] text-xs font-bold border border-emerald-300 whitespace-nowrap transition flex items-center gap-1.5 shadow-sm"
+                    title="Opens WhatsApp directly with teammate's phone to send the code"
                   >
-                    {custPhoneSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Smartphone className="w-3 h-3" />}
-                    <span>Send to Phone</span>
+                    {custPhoneSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />}
+                    <span>Send via WhatsApp</span>
                   </button>
                 </div>
               </div>
@@ -936,10 +959,11 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
                     type="button"
                     onClick={handleSendWorkPhoneOtp}
                     disabled={workPhoneSending}
-                    className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-300 whitespace-nowrap transition flex items-center gap-1"
+                    className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-300 whitespace-nowrap transition flex items-center gap-1.5 shadow-sm"
+                    title="Opens WhatsApp directly with teammate's phone to send the code"
                   >
-                    {workPhoneSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Smartphone className="w-3 h-3" />}
-                    <span>Send to Phone</span>
+                    {workPhoneSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5 text-amber-700 fill-amber-700" />}
+                    <span>Send via WhatsApp</span>
                   </button>
                 </div>
               </div>
