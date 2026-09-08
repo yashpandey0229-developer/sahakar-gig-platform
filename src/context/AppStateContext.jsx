@@ -548,6 +548,8 @@ export function AppStateProvider({ children }) {
       customerLocation: bookingDetails.location || customer.location,
       scheduledTime: bookingDetails.scheduledTime || 'Immediate (Express Dispatch)',
       notes: bookingDetails.notes || '',
+      problemPhoto: bookingDetails.problemPhoto || null,
+      completionPhoto: null,
       totalAmount: amount,
       breakdown,
       status: 'BROADCASTING',
@@ -624,6 +626,19 @@ export function AppStateProvider({ children }) {
       `नया कार्य स्वीकार किया गया: ${topCandidate.name} आपके स्थान के लिए रवाना हो रहे हैं।`,
       'hi'
     );
+  };
+
+  // 2B. Update Arbitrary Booking Fields (e.g. Completion Photo, Problem Photo)
+  const updateBooking = (bookingId, updates) => {
+    setBookings(prev =>
+      prev.map(b => {
+        if (b.id === bookingId) {
+          return { ...b, ...updates };
+        }
+        return b;
+      })
+    );
+    api.updateBooking(bookingId, updates).catch(console.warn);
   };
 
   // 3. Update Booking Status
@@ -844,6 +859,7 @@ export function AppStateProvider({ children }) {
         activeBooking,
         pendingBroadcastingGigs,
         createBooking,
+        updateBooking,
         acceptJobByWorker,
         updateBookingStatus,
         submitReview,

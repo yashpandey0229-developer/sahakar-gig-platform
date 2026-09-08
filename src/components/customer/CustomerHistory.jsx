@@ -13,10 +13,12 @@ import {
   UserCheck
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
+import { CooperativeReceiptModal } from '../common/CooperativeReceiptModal';
 
 export function CustomerHistory({ onSelectBooking }) {
   const { bookings, submitReview, customer } = useAppState();
   const [selectedBookingForReview, setSelectedBookingForReview] = useState(null);
+  const [selectedBookingForReceipt, setSelectedBookingForReceipt] = useState(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
 
@@ -144,20 +146,29 @@ export function CustomerHistory({ onSelectBooking }) {
                   <div className="text-xl font-black text-slate-900">₹{booking.totalAmount}</div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedBookingForReceipt(booking)}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-black transition flex items-center gap-1.5 shadow-sm"
+                    title="View & Download 88-7-5 Tax Invoice"
+                  >
+                    <Receipt className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Receipt (PDF)</span>
+                  </button>
+
                   {booking.status === 'COMPLETED' && !booking.ratingGiven && (
                     <button
                       onClick={() => setSelectedBookingForReview(booking)}
-                      className="px-4 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-black transition flex items-center gap-1 shadow-sm"
+                      className="px-3.5 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-black transition flex items-center gap-1 shadow-sm"
                     >
                       <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                      <span>Rate Artisan</span>
+                      <span>Rate</span>
                     </button>
                   )}
                   {booking.ratingGiven && (
                     <span className="flex items-center gap-1 text-xs text-amber-800 font-black bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
                       <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                      <span>{booking.ratingGiven}★ Rated</span>
+                      <span>{booking.ratingGiven}★</span>
                     </span>
                   )}
                 </div>
@@ -234,6 +245,13 @@ export function CustomerHistory({ onSelectBooking }) {
           </div>
         </div>
       )}
+
+      {/* Audited Cooperative Tax & Dividend Receipt Modal */}
+      <CooperativeReceiptModal
+        booking={selectedBookingForReceipt}
+        isOpen={!!selectedBookingForReceipt}
+        onClose={() => setSelectedBookingForReceipt(null)}
+      />
 
     </div>
   );

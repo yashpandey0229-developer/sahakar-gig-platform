@@ -24,8 +24,25 @@ export function BookingModal({ service, isOpen, onClose, onBookingSuccess }) {
   const [selectedDate, setSelectedDate] = useState('Today, 4:00 PM - 6:00 PM');
   const [address, setAddress] = useState(customer.address);
   const [notes, setNotes] = useState('');
-  const [photoAttached, setPhotoAttached] = useState(false);
+  const [problemPhoto, setProblemPhoto] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = React.useRef(null);
+
+  const SAMPLE_PROBLEM_PRESETS = [
+    { label: '💧 Leaking Tap / Pipe', url: 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=500&auto=format&fit=crop&q=80' },
+    { label: '⚡ Sparking Switch / MCB', url: 'https://images.unsplash.com/photo-1558389186-438424b00a32?w=500&auto=format&fit=crop&q=80' },
+    { label: '❄️ AC Water Leak / Coil', url: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=500&auto=format&fit=crop&q=80' }
+  ];
+
+  const handlePhotoFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setProblemPhoto(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
 
   if (!isOpen || !service) return null;
 
@@ -50,7 +67,8 @@ export function BookingModal({ service, isOpen, onClose, onBookingSuccess }) {
         address,
         location: customer.location,
         scheduledTime: scheduleType === 'express' ? 'Immediate Express (ETA 10-15m)' : selectedDate,
-        notes: notes + (photoAttached ? ' [Photo Evidence Attached]' : '')
+        notes: notes + (problemPhoto ? ' [Issue Photo Attached]' : ''),
+        problemPhoto
       });
       setIsSubmitting(false);
       if (onBookingSuccess) onBookingSuccess(bookingId);
@@ -187,26 +205,81 @@ export function BookingModal({ service, isOpen, onClose, onBookingSuccess }) {
             />
           </div>
 
-          <div className="flex gap-2">
+          <div>
             <input
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Optional: Describe issue (e.g. leaking kitchen pipe, sparking switch)"
-              className="flex-1 px-4 py-3 rounded-2xl glass-input text-xs text-slate-900 focus:outline-none"
+              placeholder="Describe issue (e.g. leaking kitchen pipe, sparking switchboard)"
+              className="w-full px-4 py-3 rounded-2xl glass-input text-xs text-slate-900 focus:outline-none"
             />
-            <button
-              type="button"
-              onClick={() => setPhotoAttached(!photoAttached)}
-              className={`px-4 py-3 rounded-2xl border text-xs font-bold flex items-center gap-1.5 transition ${
-                photoAttached
-                  ? 'bg-emerald-100 border-emerald-400 text-emerald-800'
-                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Camera className="w-4 h-4" />
-              <span>{photoAttached ? 'Photo Added' : 'Add Photo'}</span>
-            </button>
+          </div>
+
+          {/* Customer Problem Photo Upload Section */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <Camera className="w-4 h-4 text-emerald-600" />
+                <span>Upload Problem Photo (समस्या की फोटो):</span>
+              </span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoFileChange}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-3 py-1 rounded-xl transition flex items-center gap-1 shadow-sm"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>{problemPhoto ? 'Change Photo' : 'Choose File / Camera'}</span>
+              </button>
+            </div>
+
+            {/* If Photo Selected, Show Preview */}
+            {problemPhoto ? (
+              <div className="relative rounded-2xl overflow-hidden border-2 border-emerald-500 shadow-md">
+                <img 
+                  src={problemPhoto} 
+                  alt="Problem evidence" 
+                  className="w-full h-36 object-cover"
+                />
+                <div className="absolute top-2 right-2 flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setProblemPhoto(null)}
+                    className="p-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold transition flex items-center gap-1 shadow"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Remove</span>
+                  </button>
+                </div>
+                <div className="absolute bottom-2 left-2 bg-slate-900/80 text-white text-[10px] font-mono px-2.5 py-0.5 rounded-lg">
+                  ✓ Photo Attached for Artisan
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <div className="text-[11px] text-slate-500">
+                  Or pick a sample defect for instant demo:
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {SAMPLE_PROBLEM_PRESETS.map((preset, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setProblemPhoto(preset.url)}
+                      className="px-2.5 py-1 rounded-xl bg-white border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50 text-[11px] font-bold text-slate-700 transition shadow-sm"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

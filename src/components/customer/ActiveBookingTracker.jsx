@@ -16,14 +16,19 @@ import {
   Navigation,
   Sparkles,
   Copy,
-  Ticket
+  Ticket,
+  Receipt,
+  FileText,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 import { LiveMap } from '../common/LiveMap';
+import { CooperativeReceiptModal } from '../common/CooperativeReceiptModal';
 
 export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
   const { updateBookingStatus, setCurrentRole, setActiveWorkerId } = useAppState();
   const [copiedOtp, setCopiedOtp] = useState(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   if (!booking) return null;
 
@@ -135,16 +140,54 @@ export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
             className="h-80 w-full rounded-3xl overflow-hidden shadow-xl border border-slate-200"
           />
 
-          {/* Customer Safety & Quality Assurance Strip (Urban Company Style) */}
+          {/* Customer Safety & Quality Assurance Strip */}
           <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs">
             <span className="font-bold text-emerald-950 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
               <span>Doorstep Verification: Only share Start OTP <strong>({booking.startOtp})</strong> when technician reaches your home.</span>
             </span>
             <span className="hidden sm:inline-block px-2.5 py-1 bg-emerald-600 text-white font-mono font-bold rounded-lg text-[11px]">
-              Verified Safe
+              Customer Safe
             </span>
           </div>
+
+          {/* Job Evidence & Photo Audit Strip */}
+          {(booking.problemPhoto || booking.completionPhoto) && (
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                  <ImageIcon className="w-4 h-4 text-emerald-600" />
+                  <span>Job Evidence & Inspection Photos</span>
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono font-bold">
+                  Mutual Verification
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {booking.problemPhoto && (
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-slate-500 font-bold block">1. Your Reported Issue:</span>
+                    <img 
+                      src={booking.problemPhoto} 
+                      alt="Reported problem" 
+                      className="w-full h-24 sm:h-28 object-cover rounded-xl border border-slate-200 shadow-sm"
+                    />
+                  </div>
+                )}
+                {booking.completionPhoto && (
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-emerald-700 font-bold block">2. Worker Fixed Proof:</span>
+                    <img 
+                      src={booking.completionPhoto} 
+                      alt="Fixed work completion" 
+                      className="w-full h-24 sm:h-28 object-cover rounded-xl border border-emerald-300 shadow-sm"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Worker Profile & Dual-OTP Security Pass */}
@@ -251,21 +294,36 @@ export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
             </div>
           </div>
 
-          {/* Price Breakdown Snapshot */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+          {/* Price Breakdown Snapshot with 88-7-5 Split */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
             <div className="flex items-center justify-between font-black text-slate-900 text-sm">
               <span>Total Service Invoice</span>
               <span>₹{booking.totalAmount}</span>
             </div>
-            <div className="flex items-center justify-between text-[11px] text-emerald-700 font-bold">
-              <span>Worker Direct Net Payout</span>
-              <span>₹{booking.breakdown?.workerPayout} (88%)</span>
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-amber-700 font-semibold">
-              <span>Cooperative Health & Welfare Pool</span>
-              <span>₹{booking.breakdown?.welfareFundContribution} (7%)</span>
+            <div className="space-y-1 pt-1 border-t border-slate-200">
+              <div className="flex items-center justify-between text-[11px] text-emerald-700 font-bold">
+                <span>1. Artisan Direct Payout (88%)</span>
+                <span>₹{booking.breakdown?.workerPayout || Math.round(booking.totalAmount * 0.88)}</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-amber-700 font-semibold">
+                <span>2. Healthcare & Pension Pool (7%)</span>
+                <span>₹{booking.breakdown?.welfareFundContribution || Math.round(booking.totalAmount * 0.07)}</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-slate-600 font-semibold">
+                <span>3. Open-Source IT & Protocols (5%)</span>
+                <span>₹{booking.breakdown?.platformMaintenance || Math.round(booking.totalAmount * 0.05)}</span>
+              </div>
             </div>
           </div>
+
+          {/* Receipt View & Download Button (Available anytime or on completion) */}
+          <button
+            onClick={() => setShowReceiptModal(true)}
+            className="w-full py-3 rounded-2xl bg-white border-2 border-emerald-500/50 hover:bg-emerald-50 text-emerald-800 font-black text-xs flex items-center justify-center gap-2 transition shadow-sm"
+          >
+            <Receipt className="w-4 h-4 text-emerald-600" />
+            <span>View & Download 88-7-5 Tax Receipt (PDF)</span>
+          </button>
 
           {/* Rating button if completed */}
           {booking.status === 'COMPLETED' && (
@@ -281,6 +339,13 @@ export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
         </div>
 
       </div>
+
+      {/* Reusable Cooperative Tax Invoice Modal */}
+      <CooperativeReceiptModal
+        booking={booking}
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+      />
 
     </div>
   );

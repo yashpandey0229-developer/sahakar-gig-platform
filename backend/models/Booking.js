@@ -43,6 +43,8 @@ const bookingSchema = new mongoose.Schema({
   etaMins: { type: Number, default: 12 },
   scheduledTime: { type: String },
   notes: { type: String },
+  problemPhoto: { type: String },
+  completionPhoto: { type: String },
   ratingGiven: { type: Number },
   reviewText: { type: String }
 }, { timestamps: true });

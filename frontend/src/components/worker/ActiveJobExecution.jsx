@@ -12,16 +12,23 @@ import {
   AlertCircle,
   Sparkles,
   Check,
-  Zap
+  Zap,
+  Camera,
+  Image as ImageIcon,
+  Receipt,
+  Printer,
+  X
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 import { LiveMap } from '../common/LiveMap';
 import { speechService } from '../../services/speechService';
+import { CooperativeReceiptModal } from '../common/CooperativeReceiptModal';
 
 export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
   const { 
     activeBooking, 
     updateBookingStatus, 
+    updateBooking,
     activeWorker, 
     setCurrentRole 
   } = useAppState();
@@ -30,6 +37,32 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
   const [inputEndOtp, setInputEndOtp] = useState('');
   const [otpError, setOtpError] = useState('');
   const [successStep, setSuccessStep] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [workerPhoto, setWorkerPhoto] = useState(activeBooking?.completionPhoto || null);
+  const workerFileInputRef = React.useRef(null);
+
+  const SAMPLE_COMPLETION_PRESETS = [
+    { label: '🔧 Fixed Pipe & Seal', url: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=500&auto=format&fit=crop&q=80' },
+    { label: '⚡ Rewired & Fixed MCB', url: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=500&auto=format&fit=crop&q=80' },
+    { label: '❄️ Serviced & Clean Unit', url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&auto=format&fit=crop&q=80' }
+  ];
+
+  const handleSaveCompletionPhoto = (photoUrl) => {
+    setWorkerPhoto(photoUrl);
+    if (activeBooking) {
+      updateBooking(activeBooking.id, { completionPhoto: photoUrl });
+    }
+  };
+
+  const handleWorkerPhotoFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      handleSaveCompletionPhoto(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
 
   if (!activeBooking) {
     return (
@@ -67,7 +100,7 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
       speechService.speak('प्रारंभ ओटीपी सत्यापित हुआ। कार्य शुरू करें।', 'hi');
     } else {
       speechService.playChime('alert');
-      setOtpError(`Invalid Start OTP. Please ask customer for 4-digit code (Demo Hint: ${activeBooking.startOtp})`);
+      setOtpError('Invalid Start OTP. Please ask customer to read the 4-digit code shown on their app screen.');
     }
   };
 
@@ -80,7 +113,7 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
       setSuccessStep(true);
     } else {
       speechService.playChime('alert');
-      setOtpError(`Invalid Completion OTP. (Demo Hint: ${activeBooking.endOtp})`);
+      setOtpError('Invalid Completion OTP. Please ask customer for the 4-digit code shown on their app screen.');
     }
   };
 
@@ -214,7 +247,7 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
                   className="w-full text-center tracking-widest text-3xl font-mono py-3.5 rounded-2xl bg-slate-50 border border-slate-300 text-amber-600 font-black focus:outline-none"
                 />
                 <span className="text-[11px] text-slate-500 block text-center font-bold">
-                  (Demo Hint: Customer's OTP is <strong className="text-emerald-700 font-black">{activeBooking.startOtp}</strong>)
+                  🔒 Ask the customer to verbally share their 4-digit Start OTP from their app screen.
                 </span>
               </div>
 
@@ -234,18 +267,103 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
             </div>
           )}
 
-          {/* Step 4: IN_PROGRESS -> ENTER END OTP */}
+          {/* Step 4: IN_PROGRESS -> WORKER COMPLETION PHOTO & END OTP */}
           {activeBooking.status === 'IN_PROGRESS' && (
             <div className="p-6 sm:p-8 rounded-3xl bg-white border-2 border-purple-300 space-y-4 shadow-xl animate-in fade-in">
               <div className="flex items-center gap-2 text-purple-800 font-black text-base">
                 <Clock className="w-5 h-5" />
-                <span>Step 4: Finish Job & Verify End OTP</span>
+                <span>Step 4: Finish Job & Upload Proof</span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                Perform the repair or maintenance. When finished, ask customer for their <strong>End OTP</strong> to finalize payment and cooperative dividend credit.
+                Perform the repair. Once complete, upload a photo of your finished work and ask the customer for their <strong>End OTP</strong>.
               </p>
 
-              <div className="space-y-2">
+              {/* Customer Reported Problem (Before Photo) Reference */}
+              {activeBooking.problemPhoto && (
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-bold text-slate-700">1. Customer's Reported Issue:</span>
+                    <span className="text-[10px] bg-amber-100 text-amber-800 font-mono font-bold px-1.5 py-0.5 rounded">Before Fix</span>
+                  </div>
+                  <img
+                    src={activeBooking.problemPhoto}
+                    alt="Customer Problem"
+                    className="w-full h-24 object-cover rounded-xl border border-slate-200 shadow-sm"
+                  />
+                </div>
+              )}
+
+              {/* Worker Completion Photo Upload Section */}
+              <div className="p-3.5 rounded-2xl bg-purple-50/50 border border-purple-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                    <Camera className="w-4 h-4 text-purple-700" />
+                    <span>Upload Finished Work Photo (काम पूरा होने की फोटो):</span>
+                  </span>
+                  <input
+                    ref={workerFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleWorkerPhotoFileChange}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => workerFileInputRef.current?.click()}
+                    className="text-xs font-bold text-purple-800 hover:text-purple-900 bg-purple-100 hover:bg-purple-200 px-3 py-1 rounded-xl transition flex items-center gap-1 shadow-sm"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>{workerPhoto ? 'Change Photo' : 'Capture / Pick File'}</span>
+                  </button>
+                </div>
+
+                {workerPhoto ? (
+                  <div className="relative rounded-2xl overflow-hidden border-2 border-purple-500 shadow-md">
+                    <img
+                      src={workerPhoto}
+                      alt="Work Completion Proof"
+                      className="w-full h-32 object-cover"
+                    />
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSaveCompletionPhoto(null)}
+                        className="p-1 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold transition flex items-center gap-1 shadow"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                    <div className="absolute bottom-2 left-2 bg-emerald-700 text-white text-[10px] font-mono px-2 py-0.5 rounded-lg shadow-sm font-bold">
+                      ✓ Work Completion Proof Attached
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] text-slate-500 block">
+                      Or pick a demo completion proof:
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {SAMPLE_COMPLETION_PRESETS.map((preset, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleSaveCompletionPhoto(preset.url)}
+                          className="px-2.5 py-1 rounded-xl bg-white border border-purple-200 hover:border-purple-400 hover:bg-purple-100/50 text-[11px] font-bold text-slate-700 transition shadow-sm"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* End OTP Input (Strictly No Leak) */}
+              <div className="space-y-2 pt-1">
+                <label className="text-xs font-bold text-slate-700 block text-center">
+                  Enter 4-digit Customer End OTP to Finalize:
+                </label>
                 <input
                   type="text"
                   maxLength={4}
@@ -255,7 +373,7 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
                   className="w-full text-center tracking-widest text-3xl font-mono py-3.5 rounded-2xl bg-slate-50 border border-slate-300 text-emerald-600 font-black focus:outline-none"
                 />
                 <span className="text-[11px] text-slate-500 block text-center font-bold">
-                  (Demo Hint: Customer's End OTP is <strong className="text-emerald-700 font-black">{activeBooking.endOtp}</strong>)
+                  🔒 Ask the customer for their Job-End OTP after completing the task.
                 </span>
               </div>
 
@@ -275,7 +393,7 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
             </div>
           )}
 
-          {/* Step 5: COMPLETED -> SUCCESS CELEBRATION */}
+          {/* Step 5: COMPLETED -> SUCCESS CELEBRATION & 88-7-5 RECEIPT */}
           {activeBooking.status === 'COMPLETED' && (
             <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-teal-50 border-2 border-emerald-500 text-center space-y-4 animate-in zoom-in-95 shadow-xl">
               <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center text-3xl shadow-sm">
@@ -288,26 +406,58 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
                 Payment settled instantly with 88% direct retention.
               </p>
 
+              {/* Before & After Audit Proof Preview */}
+              {(activeBooking.problemPhoto || activeBooking.completionPhoto || workerPhoto) && (
+                <div className="grid grid-cols-2 gap-2 text-left p-3 rounded-2xl bg-white border border-slate-200">
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-slate-500 font-bold block">1. Customer Issue:</span>
+                    <img 
+                      src={activeBooking.problemPhoto || 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=300'} 
+                      alt="Issue" 
+                      className="w-full h-20 object-cover rounded-lg border border-slate-200" 
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-emerald-700 font-bold block">2. Your Fixed Work:</span>
+                    <img 
+                      src={activeBooking.completionPhoto || workerPhoto || 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=300'} 
+                      alt="Work Fixed" 
+                      className="w-full h-20 object-cover rounded-lg border border-emerald-400" 
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* 88% - 7% - 5% Split Breakdown Card */}
               <div className="p-4 rounded-2xl bg-white border border-slate-200 text-xs space-y-2 text-left shadow-sm">
                 <div className="flex justify-between text-slate-900 font-black">
                   <span>Gross Customer Invoice</span>
                   <span>₹{activeBooking.totalAmount}</span>
                 </div>
-                <div className="flex justify-between text-emerald-700 font-bold">
-                  <span>Credited to Your Wallet (88%)</span>
-                  <span>+₹{activeBooking.breakdown?.workerPayout}</span>
+                <div className="flex justify-between text-emerald-700 font-bold pt-1 border-t border-slate-100">
+                  <span>1. Direct Wallet Payout (88%)</span>
+                  <span>+₹{activeBooking.breakdown?.workerPayout || Math.round(activeBooking.totalAmount * 0.88)}</span>
                 </div>
                 <div className="flex justify-between text-amber-700 font-semibold">
-                  <span>Accrued Coop Dividend Reserve</span>
-                  <span>+₹{activeBooking.breakdown?.estimatedPatronageDividend}</span>
+                  <span>2. Cooperative Health & Welfare Fund (7%)</span>
+                  <span>+₹{activeBooking.breakdown?.welfareFundContribution || Math.round(activeBooking.totalAmount * 0.07)}</span>
                 </div>
-                <div className="flex justify-between text-blue-700 font-semibold">
-                  <span>Welfare Fund Health Credits</span>
-                  <span>+₹{activeBooking.breakdown?.welfareFundContribution}</span>
+                <div className="flex justify-between text-slate-600 font-semibold">
+                  <span>3. Open-Source IT & Protocol Rails (5%)</span>
+                  <span>+₹{activeBooking.breakdown?.platformMaintenance || Math.round(activeBooking.totalAmount * 0.05)}</span>
                 </div>
               </div>
 
-              <div className="flex gap-2.5">
+              {/* View & Download Receipt Button */}
+              <button
+                onClick={() => setShowReceiptModal(true)}
+                className="w-full py-3 rounded-2xl bg-white border-2 border-emerald-500/60 hover:bg-emerald-50 text-emerald-800 font-black text-xs flex items-center justify-center gap-2 transition shadow-sm"
+              >
+                <Receipt className="w-4 h-4 text-emerald-600" />
+                <span>View & Download Payout Tax Invoice (PDF)</span>
+              </button>
+
+              <div className="flex gap-2.5 pt-1">
                 <button
                   onClick={onOpenWallet}
                   className="flex-1 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-600/30 transition"
@@ -327,6 +477,13 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
         </div>
 
       </div>
+
+      {/* Cooperative Tax & Dividend Invoice Modal */}
+      <CooperativeReceiptModal
+        booking={activeBooking}
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+      />
 
     </div>
   );
