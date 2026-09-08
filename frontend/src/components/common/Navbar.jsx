@@ -45,14 +45,19 @@ export function Navbar({ onOpenArchitecture, onOpenRoleModal }) {
     <header className="sticky top-0 z-40 w-full bg-[#FAF7F0] border-b border-[#EBE5D8]">
       
       {/* Top Heritage Navy Bar */}
-      <div className="bg-[#111C26] text-[#E2E8F0] text-[11px] px-4 sm:px-8 py-1.5 flex items-center justify-between font-mono tracking-tight">
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
-          <span>{t.topBarLeft}</span>
-          <span className="text-slate-400 hidden sm:inline">{t.topBarRegd}</span>
+      <div className="bg-[#111C26] text-[#E2E8F0] text-[11px] px-4 sm:px-8 py-2 flex items-center justify-between font-mono tracking-tight">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
+          <span className="font-bold text-white">{t.topBarLeft}</span>
+          <span className="text-slate-400 hidden lg:inline">| {t.topBarRegd}</span>
         </div>
-        <div className="italic text-slate-300 font-serif text-[12px] hidden md:block">
-          {t.topBarMotto}
+        <div className="flex items-center gap-4 text-slate-300">
+          <a href="mailto:support@sahakar.gov.in" className="hover:text-white transition hidden md:inline">
+            ✉️ support@sahakar.gov.in
+          </a>
+          <a href="tel:18002007242" className="text-amber-300 font-bold hover:underline flex items-center gap-1">
+            📞 1800-200-SAHAKAR (24/7 Toll-Free)
+          </a>
         </div>
       </div>
 
