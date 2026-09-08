@@ -17,7 +17,7 @@ import {
 import { useAppState } from '../../context/AppStateContext';
 import { getTranslation } from '../../services/translations';
 
-export function Navbar({ onOpenPitchGuide, onOpenArchitecture, onOpenRoleModal }) {
+export function Navbar({ onOpenArchitecture, onOpenRoleModal }) {
   const { 
     currentRole, 
     setCurrentRole, 
@@ -183,15 +183,6 @@ export function Navbar({ onOpenPitchGuide, onOpenArchitecture, onOpenRoleModal }
               <span className="hidden md:inline">Switch Role</span>
             </button>
 
-            {/* SIH Pitch Guide */}
-            <button
-              onClick={onOpenPitchGuide}
-              className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-950 text-xs font-bold transition shadow-sm"
-              title="SIH Pitch Deck & Jury Q&A"
-            >
-              <span>🏆 SIH Pitch</span>
-            </button>
-
             {/* Language Toggle Button */}
             <button
               onClick={toggleLanguage}
@@ -270,12 +261,6 @@ export function Navbar({ onOpenPitchGuide, onOpenArchitecture, onOpenRoleModal }
                   </button>
 
                   <div className="pt-2 mt-2 border-t border-slate-100 flex flex-col gap-1">
-                    <button
-                      onClick={() => { onOpenPitchGuide(); setShowRoleDropdown(false); }}
-                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
-                    >
-                      <span>🏆 SIH Pitch Guide & Q&A</span>
-                    </button>
                     <button
                       onClick={() => { onOpenArchitecture(); setShowRoleDropdown(false); }}
                       className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-emerald-800 hover:bg-emerald-50 flex items-center gap-2"

@@ -6,7 +6,6 @@ import { CustomerPortal } from './components/customer/CustomerPortal';
 import { WorkerPortal } from './components/worker/WorkerPortal';
 import { CooperativePortal } from './components/cooperative/CooperativePortal';
 import { MinistryPortal } from './components/ministry/MinistryPortal';
-import { PresentationGuideModal as PitchGuideModal } from './components/docs/PresentationGuideModal';
 import { ArchitectureDiagramModal as ArchitectureModal } from './components/docs/ArchitectureDiagramModal';
 import { RoleWelcomeModal } from './components/common/RoleWelcomeModal';
 import { Star, ShieldCheck, Heart } from 'lucide-react';
@@ -14,7 +13,6 @@ import { getTranslation } from './services/translations';
 
 export function App() {
   const { currentRole, setCurrentRole, language } = useAppState();
-  const [isPitchGuideOpen, setIsPitchGuideOpen] = useState(false);
   const [isArchitectureOpen, setIsArchitectureOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(() => {
     try {
@@ -31,7 +29,6 @@ export function App() {
       
       {/* Global Navbar */}
       <Navbar
-        onOpenPitchGuide={() => setIsPitchGuideOpen(true)}
         onOpenArchitecture={() => setIsArchitectureOpen(true)}
         onOpenRoleModal={() => setIsRoleModalOpen(true)}
       />
@@ -187,11 +184,6 @@ export function App() {
         </div>
       </footer>
 
-      {/* System Pitch Guide Modal */}
-      <PitchGuideModal
-        isOpen={isPitchGuideOpen}
-        onClose={() => setIsPitchGuideOpen(false)}
-      />
 
       {/* System Architecture Modal */}
       <ArchitectureModal

@@ -86,5 +86,5 @@ vercel
 
 ---
 
-## 🏆 Presentation & Live Demo Cheat Sheet
-Click the **"SIH Pitch Deck & Q&A"** or **"System Architecture"** buttons in the top navbar inside the app during your presentation to project interactive slides directly to the judges!
+## 🏆 System Architecture & Live Demo Cheat Sheet
+Click the **"System Architecture"** button in the top navbar inside the app to inspect the full interactive 4-tier stack and data model diagrams!
