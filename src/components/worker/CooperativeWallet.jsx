@@ -16,9 +16,14 @@ import {
 import { useAppState } from '../../context/AppStateContext';
 
 export function CooperativeWallet({ onBackToDashboard }) {
-  const { activeWorker, updateWorkerWallet } = useAppState();
+  const { activeWorker, updateWorkerWallet, bookings } = useAppState();
   const [cashoutAmount, setCashoutAmount] = useState('');
   const [cashoutSuccess, setCashoutSuccess] = useState(false);
+
+  // Strict isolation: only show jobs completed by THIS active worker / teammate
+  const myCompletedJobs = bookings.filter(b => 
+    b.workerId === activeWorker.id && b.status === 'COMPLETED'
+  );
 
   const handleCashout = (e) => {
     e.preventDefault();
@@ -36,10 +41,10 @@ export function CooperativeWallet({ onBackToDashboard }) {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in">
       
       {/* Top Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <button
             onClick={onBackToDashboard}
@@ -47,12 +52,23 @@ export function CooperativeWallet({ onBackToDashboard }) {
           >
             ← Back to Partner HUD
           </button>
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 font-['Outfit']">
-            Cooperative Wealth & Dividend Ledger
-          </h2>
-          <p className="text-xs text-slate-500 font-medium">
-            100% transparent cooperative earnings, quarterly patronage profit shares, and health reserves
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 font-['Outfit']">
+              Cooperative Wealth & Dividend Ledger
+            </h2>
+            <span className="text-xs font-mono font-bold bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full border border-amber-300">
+              {activeWorker.cooperativeMemberId}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Member: <strong>{activeWorker.name}</strong> ({activeWorker.email || activeWorker.phone}) · {activeWorker.societyName}
           </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold bg-white border border-slate-200 text-slate-700 px-3.5 py-2 rounded-2xl shadow-sm">
+            Completed Gigs: <strong>{myCompletedJobs.length}</strong>
+          </span>
         </div>
       </div>
 
@@ -101,32 +117,31 @@ export function CooperativeWallet({ onBackToDashboard }) {
           </form>
         </div>
 
-        {/* 2. Patronage Dividends (Profit Share) */}
-        <div className="bg-gradient-to-br from-amber-50 via-white to-orange-50 rounded-3xl p-6 border-2 border-amber-300 shadow-md space-y-4">
+        {/* 2. Patronage Dividend Pool */}
+        <div className="bg-gradient-to-br from-amber-50 via-white to-yellow-50 rounded-3xl p-6 border-2 border-amber-300 shadow-md space-y-4">
           <div className="flex items-center justify-between text-xs text-amber-800 font-black">
-            <span>Accrued Patronage Dividends</span>
+            <span>Patronage Dividend Reserve</span>
             <Sparkles className="w-4 h-4 text-amber-500" />
           </div>
 
           <div>
-            <div className="text-4xl font-black text-amber-700 font-['Outfit']">
+            <div className="text-4xl font-black text-amber-900 font-['Outfit']">
               ₹{activeWorker.wallet.patronageDividends.toLocaleString()}
             </div>
             <p className="text-[11px] text-slate-500 mt-1 font-medium">
-              Quarterly profit share distributed back to member-workers based on job volume.
+              Your accrued share of cooperative platform surplus profits (ICA Principle 3).
             </p>
           </div>
 
-          {/* Visual Progress towards Quarter End */}
-          <div className="space-y-1.5 pt-2">
-            <div className="flex justify-between text-[11px] text-slate-500 font-bold">
-              <span>Q3 Cooperative Surplus Pool</span>
-              <span className="text-amber-800 font-black">82% Target Met</span>
+          <div className="p-3 bg-white border border-amber-200 rounded-2xl text-[11px] space-y-1 shadow-sm font-medium">
+            <div className="flex justify-between text-slate-700">
+              <span>Next Quarterly Distribution:</span>
+              <strong className="text-amber-800">30th Sept 2026</strong>
             </div>
-            <div className="w-full h-3 bg-amber-100 rounded-full overflow-hidden">
-              <div className="h-full bg-amber-500 rounded-full w-[82%]" />
+            <div className="flex justify-between text-slate-700">
+              <span>Voting Rights Active:</span>
+              <strong className="text-emerald-700 font-black">✓ 1-Worker-1-Vote</strong>
             </div>
-            <span className="text-[10px] text-slate-400 block font-medium">Next cooperative dividend payout: Sept 30, 2026</span>
           </div>
         </div>
 
@@ -163,10 +178,13 @@ export function CooperativeWallet({ onBackToDashboard }) {
       {/* Transparent Cooperative Ledger History */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-black text-slate-900 font-['Outfit']">
-            Recent Cooperative Credit Entries
-          </h3>
-          <span className="text-xs text-slate-500 font-bold">Audited by District Cooperative Registrar</span>
+          <div>
+            <h3 className="text-lg font-black text-slate-900 font-['Outfit']">
+              Recent Audited Credit Entries for {activeWorker.name}
+            </h3>
+            <p className="text-xs text-slate-500">Only showing jobs executed and settled by Member ID {activeWorker.cooperativeMemberId}</p>
+          </div>
+          <span className="text-xs text-slate-500 font-bold hidden sm:inline">Audited by District Cooperative Registrar</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -182,30 +200,49 @@ export function CooperativeWallet({ onBackToDashboard }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
-              <tr className="hover:bg-slate-50">
-                <td className="p-3.5 font-bold text-slate-900">#BK-9021 • Kitchen Plumbing Overhaul</td>
-                <td className="p-3.5 text-slate-500">Service Execution</td>
-                <td className="p-3.5 text-slate-900 font-black">₹650</td>
-                <td className="p-3.5 text-emerald-700 font-black">+₹572</td>
-                <td className="p-3.5 text-amber-700 font-bold">+₹45.5</td>
-                <td className="p-3.5"><span className="bg-emerald-100 text-emerald-800 text-[10px] px-2.5 py-0.5 rounded-full font-black">SETTLED</span></td>
-              </tr>
-              <tr className="hover:bg-slate-50">
-                <td className="p-3.5 font-bold text-slate-900">#BK-8842 • AC Filter & Gas Recharge</td>
-                <td className="p-3.5 text-slate-500">Service Execution</td>
-                <td className="p-3.5 text-slate-900 font-black">₹1,200</td>
-                <td className="p-3.5 text-emerald-700 font-black">+₹1,056</td>
-                <td className="p-3.5 text-amber-700 font-bold">+₹84.0</td>
-                <td className="p-3.5"><span className="bg-emerald-100 text-emerald-800 text-[10px] px-2.5 py-0.5 rounded-full font-black">SETTLED</span></td>
-              </tr>
-              <tr className="hover:bg-slate-50">
-                <td className="p-3.5 font-bold text-slate-900">Cooperative Q2 Surplus Patronage Dividend</td>
-                <td className="p-3.5 text-amber-700 font-bold">Profit Sharing</td>
-                <td className="p-3.5 text-slate-500">—</td>
-                <td className="p-3.5 text-amber-700 font-black">+₹1,850</td>
-                <td className="p-3.5 text-slate-500">—</td>
-                <td className="p-3.5"><span className="bg-amber-100 text-amber-800 text-[10px] px-2.5 py-0.5 rounded-full font-black">DISTRIBUTED</span></td>
-              </tr>
+              {myCompletedJobs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-slate-500 font-medium bg-slate-50/50">
+                    No completed service gigs recorded yet for <strong>{activeWorker.name}</strong> ({activeWorker.cooperativeMemberId}). Accept dispatches on the Partner HUD radar to earn 88% direct payouts.
+                  </td>
+                </tr>
+              ) : (
+                myCompletedJobs.map((job) => (
+                  <tr key={job.id} className="hover:bg-slate-50 transition">
+                    <td className="p-3.5 font-bold text-slate-900">
+                      <div>#{job.id} • {job.subServiceName || job.serviceTitle}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">
+                        Customer: {job.customerName} ({job.customerPhone})
+                      </div>
+                    </td>
+                    <td className="p-3.5 text-slate-500">Service Execution</td>
+                    <td className="p-3.5 text-slate-900 font-black">₹{job.totalAmount}</td>
+                    <td className="p-3.5 text-emerald-700 font-black">
+                      +₹{job.breakdown?.workerPayout || Math.round(job.totalAmount * 0.88)}
+                    </td>
+                    <td className="p-3.5 text-amber-700 font-bold">
+                      +₹{job.breakdown?.welfareFundContribution || Math.round(job.totalAmount * 0.07)}
+                    </td>
+                    <td className="p-3.5">
+                      <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2.5 py-0.5 rounded-full font-black">
+                        SETTLED (88%)
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+
+              {/* Quarterly Patronage Profit Sharing entry */}
+              {activeWorker.wallet.patronageDividends > 0 && (
+                <tr className="hover:bg-slate-50 bg-amber-50/30">
+                  <td className="p-3.5 font-bold text-slate-900">Cooperative Q2 Surplus Patronage Dividend</td>
+                  <td className="p-3.5 text-amber-700 font-bold">Profit Sharing</td>
+                  <td className="p-3.5 text-slate-500">—</td>
+                  <td className="p-3.5 text-amber-700 font-black">+₹{activeWorker.wallet.patronageDividends.toLocaleString()}</td>
+                  <td className="p-3.5 text-slate-500">—</td>
+                  <td className="p-3.5"><span className="bg-amber-100 text-amber-800 text-[10px] px-2.5 py-0.5 rounded-full font-black">DISTRIBUTED</span></td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

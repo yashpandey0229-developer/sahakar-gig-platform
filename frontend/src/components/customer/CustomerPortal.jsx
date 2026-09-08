@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, 
   MapPin, 
@@ -39,9 +39,19 @@ export function CustomerPortal() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileForm, setProfileForm] = useState({
     name: customer.name,
+    email: customer.email || 'priya.sharma@sahakar.org',
     phone: customer.phone,
     address: customer.address
   });
+
+  useEffect(() => {
+    setProfileForm({
+      name: customer.name || '',
+      email: customer.email || 'priya.sharma@sahakar.org',
+      phone: customer.phone || '',
+      address: customer.address || ''
+    });
+  }, [customer]);
 
   const handleOpenPriceModal = (service, amount) => {
     setPriceModalConfig({ isOpen: true, service, amount });
@@ -282,6 +292,18 @@ export function CustomerPortal() {
                   value={profileForm.name}
                   onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Email Address (ईमेल पता)</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="teammate@example.com"
+                  value={profileForm.email}
+                  onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none font-medium"
                 />
               </div>
 

@@ -86,6 +86,7 @@ export function AppStateProvider({ children }) {
     return {
       id: 'CIT-MH-501',
       name: 'Priya Sharma',
+      email: 'priya.sharma@sahakar.org',
       phone: '+91 98221 55601',
       address: 'Flat 402, Rohan Heights, FC Road, Shivajinagar, Pune',
       location: { lat: 18.5298, lng: 73.8472 },
@@ -206,14 +207,15 @@ export function AppStateProvider({ children }) {
     }
   }, []);
 
-  // Bookings Store
-  const [bookings, setBookings] = useState([
+  // Initial Seed Booking (Demonstrates transparent receipts for default account)
+  const INITIAL_DEFAULT_BOOKINGS = [
     {
       id: 'BK-7821',
       serviceId: 'electrical',
       serviceTitle: 'Electrical & Power Systems',
       subServiceName: 'MCB / Short Circuit Troubleshooting',
-      customerId: 'c-501',
+      customerId: 'CIT-MH-501',
+      customerEmail: 'priya.sharma@sahakar.org',
       customerName: 'Priya Sharma',
       customerPhone: '+91 98221 55601',
       customerAddress: 'Flat 402, Rohan Heights, FC Road, Shivajinagar, Pune',
@@ -233,7 +235,31 @@ export function AppStateProvider({ children }) {
       ratingGiven: 5,
       reviewText: 'Prompt arrival and explained the fair cooperative billing breakdown. Very professional!'
     }
-  ]);
+  ];
+
+  // Bookings Store with localStorage persistence
+  const [bookings, setBookingsState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sahakar_bookings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    return INITIAL_DEFAULT_BOOKINGS;
+  });
+
+  const setBookings = (updater) => {
+    setBookingsState(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      try {
+        localStorage.setItem('sahakar_bookings', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  };
 
   // Currently Active in-flight booking for live demo
   const [activeBookingId, setActiveBookingId] = useState(null);
@@ -379,7 +405,8 @@ export function AppStateProvider({ children }) {
       const next = { 
         ...prev, 
         ...updates,
-        id: updates.id || prev.id || ('CIT-MH-' + Math.floor(1000 + Math.random() * 9000))
+        id: updates.id || prev.id || ('CIT-MH-' + Math.floor(1000 + Math.random() * 9000)),
+        email: updates.email || prev.email || 'customer@sahakar.org'
       };
       savedProfile = next;
       try {
@@ -387,7 +414,7 @@ export function AppStateProvider({ children }) {
       } catch (e) {}
       return next;
     });
-    addNotification('Citizen Profile Saved', `Citizen ID active for ${updates.name || customer.name}.`, 'info');
+    addNotification('Citizen Profile Saved', `Citizen ID ${savedProfile?.id || ''} active for ${updates.name || customer.name}.`, 'info');
     return savedProfile;
   };
 
@@ -398,6 +425,7 @@ export function AppStateProvider({ children }) {
     const newWorker = {
       id,
       name: workerData.name || 'New Sahakari Partner',
+      email: workerData.email || (workerData.name ? `${workerData.name.toLowerCase().replace(/\s+/g, '.')}@coop.org` : 'partner@coop.org'),
       phone: workerData.phone || '+91 98230 00000',
       avatar: workerData.avatar || 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=150&auto=format&fit=crop&q=80',
       rating: 4.9,
@@ -471,6 +499,7 @@ export function AppStateProvider({ children }) {
     const updates = {
       workerId: workerObj.id,
       workerName: workerObj.name,
+      workerEmail: workerObj.email || '',
       workerPhone: workerObj.phone,
       workerAvatar: workerObj.avatar,
       workerRating: workerObj.rating,
@@ -512,6 +541,7 @@ export function AppStateProvider({ children }) {
       serviceTitle: service.title,
       subServiceName: subService ? subService.name : service.title,
       customerId: customer.id,
+      customerEmail: customer.email || bookingDetails.customerEmail || 'citizen@sahakar.org',
       customerName: bookingDetails.customerName || customer.name,
       customerPhone: bookingDetails.customerPhone || customer.phone,
       customerAddress: bookingDetails.address || customer.address,
@@ -563,6 +593,7 @@ export function AppStateProvider({ children }) {
     const updates = {
       workerId: topCandidate.id,
       workerName: topCandidate.name,
+      workerEmail: topCandidate.email || '',
       workerPhone: topCandidate.phone,
       workerAvatar: topCandidate.avatar,
       workerRating: topCandidate.rating,

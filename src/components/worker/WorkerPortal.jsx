@@ -33,6 +33,7 @@ export function WorkerPortal() {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [regForm, setRegForm] = useState({
     name: '',
+    email: activeWorker?.email || '',
     phone: '+91 98',
     skill: 'electrical',
     societyName: 'Pune Urban Electrical & Tech Cooperative',
@@ -59,6 +60,7 @@ export function WorkerPortal() {
 
     await registerWorker({
       name: regForm.name.trim(),
+      email: regForm.email?.trim() || `${regForm.name.toLowerCase().replace(/\s+/g, '.')}@coop.org`,
       phone: regForm.phone,
       skills: [regForm.skill],
       societyName: regForm.societyName,
@@ -104,10 +106,12 @@ export function WorkerPortal() {
             onClick={() => {
               setRegForm({
                 name: activeWorker?.name || '',
+                email: activeWorker?.email || '',
                 phone: activeWorker?.phone || '+91 98230 00000',
                 skill: activeWorker?.skills?.[0] || 'electrical',
                 societyName: activeWorker?.societyName || 'Pune Urban Multi-Trade Cooperative',
-                bankAccountMasked: activeWorker?.bankAccountMasked || '•••• 7721 (UPI Verified)'
+                bankAccountMasked: activeWorker?.bankAccountMasked || '•••• 7721 (UPI Verified)',
+                useCurrentGps: true
               });
               setShowRegisterModal(true);
             }}
@@ -188,6 +192,18 @@ export function WorkerPortal() {
                   <option value="carpentry">🪚 Woodwork & Carpentry</option>
                   <option value="painting">🎨 Painting & Water Proofing</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Email Address (ईमेल पता)</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="teammate@coop.org"
+                  value={regForm.email}
+                  onChange={(e) => setRegForm({ ...regForm, email: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none font-bold"
+                />
               </div>
 
               <div>
