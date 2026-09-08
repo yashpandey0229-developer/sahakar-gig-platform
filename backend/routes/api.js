@@ -381,8 +381,8 @@ const otpStore = new Map();
 
 // Helper to create Nodemailer transporter if credentials provided
 const getMailTransporter = () => {
-  const user = process.env.SMTP_USER || process.env.GMAIL_USER;
-  const pass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || process.env.GMAIL_PASSWORD;
+  const user = (process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
+  const pass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || process.env.GMAIL_PASSWORD || '').replace(/\s+/g, '');
   
   if (!user || !pass) {
     return null;
@@ -420,14 +420,14 @@ router.post('/auth/send-otp', async (req, res) => {
   otpStore.set(normalizedKey, {
     otp,
     type,
-    recipient,
+    recipient: normalizedKey,
     role: role || 'user',
     name: name || '',
     createdAt: Date.now(),
     expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes validity
   });
 
-  console.log(`[OTP Generated] ${type.toUpperCase()} for ${recipient}: ${otp}`);
+  console.log(`[OTP Generated] ${type.toUpperCase()} for ${normalizedKey}: ${otp}`);
 
   // Channel: EMAIL AUTHENTICATOR
   const transporter = getMailTransporter();
@@ -436,9 +436,10 @@ router.post('/auth/send-otp', async (req, res) => {
 
   if (transporter) {
     try {
+      const senderUser = (process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
       const mailOptions = {
-        from: process.env.SMTP_FROM || `"SahakarGig Security" <${process.env.SMTP_USER || process.env.GMAIL_USER}>`,
-        to: recipient,
+        from: process.env.SMTP_FROM || `"SahakarGig Security" <${senderUser}>`,
+        to: normalizedKey,
         subject: `[SahakarGig] ${otp} is your verification passcode`,
         html: `
           <div style="background-color: #f8fafc; padding: 40px 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
@@ -493,23 +494,28 @@ router.post('/auth/send-otp', async (req, res) => {
       };
       await transporter.sendMail(mailOptions);
       emailSent = true;
-      console.log(`[Email Sent] Successfully dispatched OTP to ${recipient}`);
+      console.log(`[Email Sent] Successfully dispatched real OTP to ${normalizedKey}`);
     } catch (err) {
-      console.warn(`[Email Error] Failed to dispatch real email to ${recipient}:`, err.message);
+      console.error(`[Email Error] Failed to dispatch real email to ${normalizedKey}:`, err.message);
+      if (err.code === 'EAUTH') {
+        console.error('[Email Hint] Gmail authentication failed! Make sure 2-Step Verification is ON and generate a 16-character App Password from https://myaccount.google.com/apppasswords');
+      }
       emailError = err.message;
     }
+  } else {
+    console.warn(`[SMTP Notice] Real email was not sent because SMTP_USER & SMTP_PASS are missing in .env. Configure them to send live emails to any user/sir.`);
   }
 
   return res.json({
     success: true,
     channel: 'email',
-    recipient,
+    recipient: normalizedKey,
     otp,
     realEmailSent: emailSent,
     emailError,
     message: emailSent 
-      ? `Real security code dispatched to ${recipient}` 
-      : `Passcode generated for ${recipient}. Enter code to verify.`
+      ? `Real security code dispatched to ${normalizedKey}` 
+      : `Passcode generated for ${normalizedKey}. Enter code to verify.`
   });
 });
 
