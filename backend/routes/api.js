@@ -262,13 +262,18 @@ async function sendCustomEmail({ to, subject, htmlContent }) {
   // 1. Brevo REST API (Active)
   if (process.env.BREVO_API_KEY) {
     try {
+      let apiKey = (process.env.BREVO_API_KEY || '').trim();
+      // Auto-prefix xkeysib- if user copied key without it
+      if (apiKey && !apiKey.startsWith('xkeysib-')) {
+        apiKey = 'xkeysib-' + apiKey;
+      }
       const senderEmail = (process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'yashpandey8894@gmail.com').trim();
-      const senderName = process.env.BREVO_SENDER_NAME || 'SahakarGig Cooperative';
+      const senderName = process.env.BREVO_SENDER_NAME || 'SahakarGig Security';
       const res = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
           'accept': 'application/json',
-          'api-key': (process.env.BREVO_API_KEY || '').trim(),
+          'api-key': apiKey,
           'content-type': 'application/json'
         },
         body: JSON.stringify({
