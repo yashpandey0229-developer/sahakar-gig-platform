@@ -226,6 +226,335 @@ router.patch('/workers/:id/wallet', async (req, res) => {
   res.json({ success: true, message: 'Wallet updated in local mode' });
 });
 
+// ==========================================
+// 4B. Real Transactional Email Engine (Brevo API & SMTP)
+// ==========================================
+const getMailTransporter = () => {
+  const user = (process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
+  const pass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || process.env.GMAIL_PASSWORD || '').replace(/\s+/g, '');
+  
+  if (!user || !pass) {
+    return null;
+  }
+  
+  const service = process.env.SMTP_SERVICE || (user.includes('gmail.com') ? 'gmail' : undefined);
+  
+  if (service === 'gmail' || (!service && user.includes('gmail.com'))) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass }
+    });
+  }
+
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
+    auth: { user, pass }
+  });
+};
+
+// Generic Email Dispatcher (Brevo API -> Resend API -> SMTP)
+async function sendCustomEmail({ to, subject, htmlContent }) {
+  if (!to || !to.includes('@')) return false;
+  const cleanTo = to.toLowerCase().trim();
+
+  // 1. Brevo REST API (Active)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const senderEmail = (process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'yashpandey8894@gmail.com').trim();
+      const senderName = process.env.BREVO_SENDER_NAME || 'SahakarGig Cooperative';
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': (process.env.BREVO_API_KEY || '').trim(),
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: senderName, email: senderEmail },
+          to: [{ email: cleanTo }],
+          subject,
+          htmlContent
+        })
+      });
+      if (res.ok) {
+        console.log(`[Email Sent via Brevo API] Delivered "${subject}" to ${cleanTo}`);
+        return true;
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.warn('[Brevo Warning]:', errData.message || res.statusText);
+      }
+    } catch (e) {
+      console.error('[Brevo Error]:', e.message);
+    }
+  }
+
+  // 2. Resend REST API
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${(process.env.RESEND_API_KEY || '').trim()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: process.env.RESEND_FROM || 'SahakarGig <onboarding@resend.dev>',
+          to: [cleanTo],
+          subject,
+          html: htmlContent
+        })
+      });
+      if (res.ok) {
+        console.log(`[Email Sent via Resend API] Delivered "${subject}" to ${cleanTo}`);
+        return true;
+      }
+    } catch (e) {
+      console.error('[Resend Error]:', e.message);
+    }
+  }
+
+  // 3. Gmail / SMTP via Nodemailer
+  const transporter = getMailTransporter();
+  if (transporter) {
+    try {
+      const senderUser = (process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || `"SahakarGig Security" <${senderUser}>`,
+        to: cleanTo,
+        subject,
+        html: htmlContent
+      });
+      console.log(`[Email Sent via SMTP] Delivered "${subject}" to ${cleanTo}`);
+      return true;
+    } catch (e) {
+      console.error('[SMTP Error]:', e.message);
+    }
+  }
+
+  return false;
+}
+
+// 1. Customer Booking Confirmation Email Template
+const getBookingConfirmationEmailHtml = ({ booking }) => `
+  <div style="background-color: #f8fafc; padding: 40px 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    <div style="max-width: 540px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+      <div style="background: linear-gradient(135deg, #111C26 0%, #1B4D3E 100%); padding: 32px 24px; text-align: center;">
+        <div style="font-size: 28px; margin-bottom: 8px;">🛠️</div>
+        <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 800;">Booking Confirmed!</h1>
+        <p style="margin: 6px 0 0 0; color: #6ee7b7; font-size: 13px; font-weight: 700; font-family: monospace;">
+          Booking ID: #${booking.id}
+        </p>
+      </div>
+
+      <div style="padding: 30px 24px;">
+        <p style="margin: 0 0 16px 0; color: #0f172a; font-size: 15px; font-weight: 600;">
+          Hello ${booking.customerName || 'Citizen'},
+        </p>
+        <p style="margin: 0 0 20px 0; color: #475569; font-size: 13px; line-height: 1.6;">
+          Your service booking for <strong>${booking.subServiceName || booking.serviceTitle}</strong> is confirmed. A cooperative artisan is assigned to your location.
+        </p>
+
+        <!-- Start OTP Card -->
+        <div style="background-color: #f0fdf4; border: 2px dashed #86efac; border-radius: 14px; padding: 18px; margin: 20px 0; text-align: center;">
+          <div style="color: #166534; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px;">
+            Doorstep Start OTP (कारीगर के आने पर दें)
+          </div>
+          <div style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #1B4D3E; font-family: monospace; margin: 10px 0;">
+            ${booking.startOtp}
+          </div>
+          <div style="color: #15803d; font-size: 11px;">
+            Share this 4-digit code ONLY when the worker arrives at your door.
+          </div>
+        </div>
+
+        <!-- Service Table -->
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; margin: 20px 0; font-size: 13px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: #475569;">
+            <span>Service:</span> <strong style="color: #0f172a;">${booking.serviceTitle}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: #475569;">
+            <span>Package:</span> <strong style="color: #0f172a;">${booking.subServiceName || booking.serviceTitle}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: #475569;">
+            <span>Total Payable:</span> <strong style="color: #1B4D3E; font-size: 15px;">₹${booking.totalAmount}</strong>
+          </div>
+          <div style="border-top: 1px solid #e2e8f0; padding-top: 8px; margin-top: 8px; color: #64748b; font-size: 12px;">
+            <span>Address:</span> <strong>${booking.customerAddress || 'Customer Location'}</strong>
+          </div>
+        </div>
+
+        <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 12px 16px; border-radius: 8px; font-size: 12px; color: #065f46; line-height: 1.5;">
+          <strong>Cooperative Model:</strong> 88% of your payment (₹${Math.round(booking.totalAmount * 0.88)}) goes directly to the worker, and 7% to their healthcare reserve.
+        </div>
+      </div>
+
+      <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center; color: #94a3b8; font-size: 11px;">
+        SahakarGig • Democratic Gig Work Protocol • Ministry of Cooperation Initiative
+      </div>
+    </div>
+  </div>
+`;
+
+// 2. Worker Partner Gig Dispatch Email Template
+const getWorkerGigDispatchEmailHtml = ({ booking }) => `
+  <div style="background-color: #f8fafc; padding: 40px 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    <div style="max-width: 540px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+      <div style="background: linear-gradient(135deg, #1c1917 0%, #b45309 100%); padding: 32px 24px; text-align: center;">
+        <div style="font-size: 28px; margin-bottom: 8px;">🧰</div>
+        <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 800;">New Gig Dispatched!</h1>
+        <p style="margin: 6px 0 0 0; color: #fde68a; font-size: 13px; font-weight: 700; font-family: monospace;">
+          Gig #${booking.id} • ${booking.serviceTitle}
+        </p>
+      </div>
+
+      <div style="padding: 30px 24px;">
+        <p style="margin: 0 0 16px 0; color: #0f172a; font-size: 15px; font-weight: 600;">
+          Hello Partner ${booking.workerName || ''},
+        </p>
+        <p style="margin: 0 0 20px 0; color: #475569; font-size: 13px; line-height: 1.6;">
+          A new gig service matching your trade has been assigned to you near your GPS sector:
+        </p>
+
+        <!-- Payout Card -->
+        <div style="background-color: #fffbeb; border: 2px solid #fde68a; border-radius: 14px; padding: 18px; margin: 20px 0; text-align: center;">
+          <div style="color: #92400e; font-size: 11px; font-weight: 800; text-transform: uppercase;">
+            Your Direct Payout (88% Artisan Share)
+          </div>
+          <div style="font-size: 36px; font-weight: 800; color: #b45309; font-family: monospace; margin: 8px 0;">
+            ₹${Math.round(booking.totalAmount * 0.88)}
+          </div>
+          <div style="color: #78350f; font-size: 11px;">
+            + ₹${Math.round(booking.totalAmount * 0.07)} credited to your Health Fund
+          </div>
+        </div>
+
+        <!-- Details -->
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; margin: 20px 0; font-size: 13px;">
+          <div style="margin-bottom: 6px; color: #475569;">
+            Customer: <strong style="color: #0f172a;">${booking.customerName}</strong> (${booking.customerPhone || 'Verified Citizen'})
+          </div>
+          <div style="margin-bottom: 6px; color: #475569;">
+            Address: <strong style="color: #0f172a;">${booking.customerAddress}</strong>
+          </div>
+          <div style="color: #475569;">
+            Service: <strong style="color: #0f172a;">${booking.subServiceName || booking.serviceTitle}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center; color: #94a3b8; font-size: 11px;">
+        SahakarGig Partner Network • Democratic Cooperative
+      </div>
+    </div>
+  </div>
+`;
+
+// 3. Official Cooperative Invoice & Tax Receipt Email Template
+const getInvoiceReceiptEmailHtml = ({ booking, recipientType = 'customer' }) => `
+  <div style="background-color: #f8fafc; padding: 40px 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    <div style="max-width: 540px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+      <div style="background: linear-gradient(135deg, #111C26 0%, #1B4D3E 100%); padding: 32px 24px; text-align: center;">
+        <div style="font-size: 28px; margin-bottom: 8px;">🧾</div>
+        <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 800;">Cooperative Tax Invoice</h1>
+        <p style="margin: 6px 0 0 0; color: #6ee7b7; font-size: 13px; font-weight: 700; font-family: monospace;">
+          Invoice #${booking.id} • Status: COMPLETED ✓
+        </p>
+      </div>
+
+      <div style="padding: 30px 24px;">
+        <p style="margin: 0 0 16px 0; color: #0f172a; font-size: 15px; font-weight: 600;">
+          ${recipientType === 'worker' ? `Payout Receipt for ${booking.workerName}` : `Service Receipt for ${booking.customerName}`},
+        </p>
+        <p style="margin: 0 0 20px 0; color: #475569; font-size: 13px; line-height: 1.6;">
+          The gig service <strong>${booking.subServiceName || booking.serviceTitle}</strong> has been successfully completed and mutually verified!
+        </p>
+
+        <!-- Breakdown Table -->
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px;">
+          <thead>
+            <tr style="background-color: #f1f5f9; text-align: left;">
+              <th style="padding: 10px; border-bottom: 2px solid #cbd5e1;">Item</th>
+              <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: center;">Share</th>
+              <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: right;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">Artisan Payout (${booking.workerName || 'Worker'})</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #166534; font-weight: bold;">88%</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #166534; font-weight: bold;">₹${Math.round(booking.totalAmount * 0.88)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">Healthcare & Welfare Reserve</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #0369a1; font-weight: bold;">7%</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #0369a1; font-weight: bold;">₹${Math.round(booking.totalAmount * 0.07)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">Platform IT Operations</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #475569; font-weight: bold;">5%</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #475569; font-weight: bold;">₹${Math.round(booking.totalAmount * 0.05)}</td>
+            </tr>
+            <tr style="background-color: #f8fafc; font-weight: bold;">
+              <td style="padding: 12px; font-size: 14px;">Total Paid</td>
+              <td style="padding: 12px; text-align: center;">100%</td>
+              <td style="padding: 12px; text-align: right; font-size: 16px; color: #1B4D3E;">₹${booking.totalAmount}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center; color: #94a3b8; font-size: 11px;">
+        SahakarGig Cooperative • Official Receipt
+      </div>
+    </div>
+  </div>
+`;
+
+// 4. Two-Factor Authenticator Passcode Email Template
+const getOtpEmailHtml = ({ otp, name, role, recipient }) => `
+  <div style="background-color: #f8fafc; padding: 40px 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    <div style="max-width: 520px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+      <div style="background: linear-gradient(135deg, #111C26 0%, #1B4D3E 100%); padding: 32px 24px; text-align: center;">
+        <div style="display: inline-block; width: 44px; height: 44px; line-height: 44px; background-color: rgba(255,255,255,0.15); border-radius: 50%; color: #ffffff; font-size: 20px; font-weight: bold; margin-bottom: 12px;">★</div>
+        <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 800;">Sahakar<span style="color: #6ee7b7; font-style: italic;">Gig</span></h1>
+        <p style="margin: 6px 0 0 0; color: #cbd5e1; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">
+          Official Cooperative Two-Factor Authentication
+        </p>
+      </div>
+
+      <div style="padding: 36px 32px; text-align: center;">
+        <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 20px; font-weight: 700;">
+          ${name ? `Hello ${name}!` : 'Verify Your Identity'}
+        </h2>
+        <p style="margin: 0 0 24px 0; color: #475569; font-size: 14px;">
+          Use the verification passcode below to authenticate your <strong>${role === 'worker' ? 'Cooperative Partner' : 'Citizen App'}</strong> account:
+        </p>
+
+        <div style="background-color: #f0fdf4; border: 2px dashed #86efac; border-radius: 14px; padding: 22px; margin: 24px 0;">
+          <div style="font-size: 40px; font-weight: 800; letter-spacing: 10px; color: #1B4D3E; font-family: monospace; margin-left: 10px;">
+            ${otp}
+          </div>
+          <div style="margin-top: 10px; color: #15803d; font-size: 12px; font-weight: 700;">
+            ⏱ Valid for 10 minutes only
+          </div>
+        </div>
+
+        <div style="background-color: #fff1f2; border: 1px solid #fecdd3; border-radius: 10px; padding: 14px; text-align: left;">
+          <p style="margin: 0; color: #9f1239; font-size: 12px; line-height: 1.4;">
+            <strong>Security Advisory:</strong> Sahakar officers will NEVER ask for this passcode. If you did not initiate this request, discard this email.
+          </p>
+        </div>
+      </div>
+
+      <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 24px; text-align: center; color: #94a3b8; font-size: 11px;">
+        This message was sent to <strong>${recipient}</strong> • Ministry of Cooperation Initiative
+      </div>
+    </div>
+  </div>
+`;
+
 // 5. Bookings Endpoints
 router.get('/bookings', async (req, res) => {
   if (isMongoConnected()) {
@@ -250,6 +579,24 @@ router.post('/bookings', async (req, res) => {
     inMemoryBookings = [bookingData, ...inMemoryBookings];
   }
 
+  // 1. Live Email Dispatch: Customer Booking Confirmation & Start OTP
+  if (bookingData.customerEmail && bookingData.customerEmail.includes('@')) {
+    sendCustomEmail({
+      to: bookingData.customerEmail,
+      subject: `[SahakarGig] Booking Confirmed #${bookingData.id} - ${bookingData.serviceTitle}`,
+      htmlContent: getBookingConfirmationEmailHtml({ booking: bookingData })
+    }).catch(err => console.warn('[Booking Email Error]:', err.message));
+  }
+
+  // 2. Live Email Dispatch: Worker Partner Gig Notification (if pre-assigned)
+  if (bookingData.workerEmail && bookingData.workerEmail.includes('@')) {
+    sendCustomEmail({
+      to: bookingData.workerEmail,
+      subject: `[SahakarGig Partner] New Gig Dispatched #${bookingData.id} - ₹${bookingData.totalAmount}`,
+      htmlContent: getWorkerGigDispatchEmailHtml({ booking: bookingData })
+    }).catch(err => console.warn('[Worker Gig Email Error]:', err.message));
+  }
+
   if (isMongoConnected()) {
     try {
       const newBooking = await Booking.create(bookingData);
@@ -263,14 +610,43 @@ router.post('/bookings', async (req, res) => {
 
 router.patch('/bookings/:id', async (req, res) => {
   const updates = req.body;
+  const current = inMemoryBookings.find(b => b.id === req.params.id) || {};
+  const updatedBooking = { ...current, ...updates };
 
   // Update in-memory store
   inMemoryBookings = inMemoryBookings.map(b => {
     if (b.id === req.params.id) {
-      return { ...b, ...updates };
+      return updatedBooking;
     }
     return b;
   });
+
+  // 1. Live Email Dispatch: If Worker assigned/accepted, send dispatch notification
+  if (updates.workerEmail && updates.workerEmail.includes('@') && updates.workerEmail !== current.workerEmail) {
+    sendCustomEmail({
+      to: updates.workerEmail,
+      subject: `[SahakarGig Partner] New Gig Assigned #${req.params.id} - ₹${updatedBooking.totalAmount}`,
+      htmlContent: getWorkerGigDispatchEmailHtml({ booking: updatedBooking })
+    }).catch(err => console.warn('[Worker Assignment Email Error]:', err.message));
+  }
+
+  // 2. Live Email Dispatch: If Gig Completed, send official invoices & payout receipts
+  if (updates.status === 'COMPLETED' && current.status !== 'COMPLETED') {
+    if (updatedBooking.customerEmail && updatedBooking.customerEmail.includes('@')) {
+      sendCustomEmail({
+        to: updatedBooking.customerEmail,
+        subject: `[SahakarGig Invoice] Receipt for #${req.params.id} (${updatedBooking.serviceTitle})`,
+        htmlContent: getInvoiceReceiptEmailHtml({ booking: updatedBooking, recipientType: 'customer' })
+      }).catch(err => console.warn('[Customer Receipt Email Error]:', err.message));
+    }
+    if (updatedBooking.workerEmail && updatedBooking.workerEmail.includes('@')) {
+      sendCustomEmail({
+        to: updatedBooking.workerEmail,
+        subject: `[SahakarGig Payout] ₹${Math.round(updatedBooking.totalAmount * 0.88)} Credited for #${req.params.id}`,
+        htmlContent: getInvoiceReceiptEmailHtml({ booking: updatedBooking, recipientType: 'worker' })
+      }).catch(err => console.warn('[Worker Payout Email Error]:', err.message));
+    }
+  }
 
   if (isMongoConnected()) {
     try {
@@ -284,7 +660,7 @@ router.patch('/bookings/:id', async (req, res) => {
       console.error('Error updating booking in MongoDB:', e);
     }
   }
-  res.json({ id: req.params.id, ...updates });
+  res.json(updatedBooking);
 });
 
 // 6. Governance Proposals Endpoints
@@ -379,140 +755,6 @@ router.get('/ministry-stats', (req, res) => {
 // ==========================================
 const otpStore = new Map();
 
-// Official Security Email HTML Template
-const getOtpEmailHtml = ({ otp, name, role, recipient }) => `
-  <div style="background-color: #f8fafc; padding: 40px 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    <div style="max-width: 520px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
-      
-      <!-- Official Header -->
-      <div style="background: linear-gradient(135deg, #111C26 0%, #1B4D3E 100%); padding: 32px 24px; text-align: center;">
-        <div style="display: inline-block; width: 44px; height: 44px; line-height: 44px; background-color: rgba(255,255,255,0.15); border-radius: 50%; color: #ffffff; font-size: 20px; font-weight: bold; margin-bottom: 12px;">
-          ★
-        </div>
-        <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Sahakar<span style="color: #6ee7b7; font-style: italic;">Gig</span></h1>
-        <p style="margin: 6px 0 0 0; color: #cbd5e1; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">
-          Official Cooperative Two-Factor Authentication
-        </p>
-      </div>
-
-      <!-- Content Body -->
-      <div style="padding: 36px 32px; text-align: center;">
-        <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 20px; font-weight: 700;">
-          ${name ? `Hello ${name}!` : 'Verify Your Identity'}
-        </h2>
-        <p style="margin: 0 0 24px 0; color: #475569; font-size: 14px; line-height: 1.5;">
-          Use the following single-use verification passcode to authenticate your <strong>${role === 'worker' ? 'Cooperative Partner' : 'Citizen App'}</strong> account:
-        </p>
-
-        <!-- Passcode Box -->
-        <div style="background-color: #f0fdf4; border: 2px dashed #86efac; border-radius: 14px; padding: 22px; margin: 24px 0;">
-          <div style="font-size: 40px; font-weight: 800; letter-spacing: 10px; color: #1B4D3E; font-family: 'Courier New', Courier, monospace; margin-left: 10px;">
-            ${otp}
-          </div>
-          <div style="margin-top: 10px; color: #15803d; font-size: 12px; font-weight: 700;">
-            ⏱ Valid for 10 minutes only
-          </div>
-        </div>
-
-        <!-- Security Advisory -->
-        <div style="background-color: #fff1f2; border: 1px solid #fecdd3; border-radius: 10px; padding: 14px; margin-top: 24px; text-align: left;">
-          <p style="margin: 0; color: #9f1239; font-size: 12px; line-height: 1.4;">
-            <strong>Security Advisory:</strong> Sahakar officers or administrators will NEVER ask for this passcode. If you did not initiate this login request, please discard this email immediately.
-          </p>
-        </div>
-      </div>
-
-      <!-- Footer -->
-      <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 24px; text-align: center; color: #94a3b8; font-size: 11px; line-height: 1.5;">
-        This message was sent to <strong>${recipient}</strong> • Democratic Gig Work Protocol<br/>
-        Ministry of Cooperation Initiative • Government of India
-      </div>
-    </div>
-  </div>
-`;
-
-// API Method 1: Brevo REST API (https://brevo.com - free tier sends to ANY email in the world)
-async function sendEmailViaBrevo({ to, otp, name, role }) {
-  const apiKey = (process.env.BREVO_API_KEY || '').trim();
-  if (!apiKey) return null;
-
-  const senderEmail = (process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'sahakar.gig.auth@gmail.com').trim();
-  const senderName = process.env.BREVO_SENDER_NAME || 'SahakarGig Security';
-
-  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: {
-      'accept': 'application/json',
-      'api-key': apiKey,
-      'content-type': 'application/json'
-    },
-    body: JSON.stringify({
-      sender: { name: senderName, email: senderEmail },
-      to: [{ email: to }],
-      subject: `[SahakarGig] ${otp} is your verification passcode`,
-      htmlContent: getOtpEmailHtml({ otp, name, role, recipient: to })
-    })
-  });
-
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.message || `Brevo API HTTP ${res.status}`);
-  }
-  return await res.json();
-}
-
-// API Method 2: Resend REST API (https://resend.com)
-async function sendEmailViaResend({ to, otp, name, role }) {
-  const apiKey = (process.env.RESEND_API_KEY || '').trim();
-  if (!apiKey) return null;
-
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      from: process.env.RESEND_FROM || 'SahakarGig <onboarding@resend.dev>',
-      to: [to],
-      subject: `[SahakarGig] ${otp} is your verification passcode`,
-      html: getOtpEmailHtml({ otp, name, role, recipient: to })
-    })
-  });
-
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.message || `Resend API HTTP ${res.status}`);
-  }
-  return await res.json();
-}
-
-// Method 3: Helper to create Nodemailer transporter (Gmail / SMTP)
-const getMailTransporter = () => {
-  const user = (process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
-  const pass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || process.env.GMAIL_PASSWORD || '').replace(/\s+/g, '');
-  
-  if (!user || !pass) {
-    return null;
-  }
-  
-  const service = process.env.SMTP_SERVICE || (user.includes('gmail.com') ? 'gmail' : undefined);
-  
-  if (service === 'gmail' || (!service && user.includes('gmail.com'))) {
-    return nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user, pass }
-    });
-  }
-
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
-    auth: { user, pass }
-  });
-};
-
 // POST /api/auth/send-otp
 router.post('/auth/send-otp', async (req, res) => {
   const { type, recipient, role, name } = req.body;
@@ -537,65 +779,12 @@ router.post('/auth/send-otp', async (req, res) => {
 
   console.log(`[OTP Generated] ${type.toUpperCase()} for ${normalizedKey}: ${otp}`);
 
-  let emailSent = false;
-  let emailError = null;
-  let providerUsed = 'none';
-
-  // 1. Try Brevo REST API if configured
-  if (process.env.BREVO_API_KEY) {
-    try {
-      await sendEmailViaBrevo({ to: normalizedKey, otp, name, role });
-      emailSent = true;
-      providerUsed = 'Brevo API';
-      console.log(`[Email Sent via Brevo API] Successfully dispatched real OTP to ${normalizedKey}`);
-    } catch (err) {
-      console.error('[Brevo API Error]:', err.message);
-      emailError = err.message;
-    }
-  }
-
-  // 2. Try Resend REST API if configured and not already sent
-  if (!emailSent && process.env.RESEND_API_KEY) {
-    try {
-      await sendEmailViaResend({ to: normalizedKey, otp, name, role });
-      emailSent = true;
-      providerUsed = 'Resend API';
-      console.log(`[Email Sent via Resend API] Successfully dispatched real OTP to ${normalizedKey}`);
-    } catch (err) {
-      console.error('[Resend API Error]:', err.message);
-      emailError = err.message;
-    }
-  }
-
-  // 3. Try Gmail / SMTP via Nodemailer
-  if (!emailSent) {
-    const transporter = getMailTransporter();
-    if (transporter) {
-      try {
-        const senderUser = (process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
-        const mailOptions = {
-          from: process.env.SMTP_FROM || `"SahakarGig Security" <${senderUser}>`,
-          to: normalizedKey,
-          subject: `[SahakarGig] ${otp} is your verification passcode`,
-          html: getOtpEmailHtml({ otp, name, role, recipient: normalizedKey })
-        };
-        await transporter.sendMail(mailOptions);
-        emailSent = true;
-        providerUsed = 'Gmail SMTP';
-        console.log(`[Email Sent via SMTP] Successfully dispatched real OTP to ${normalizedKey}`);
-      } catch (err) {
-        console.error(`[Email Error] Failed to dispatch real email to ${normalizedKey}:`, err.message);
-        if (err.code === 'EAUTH') {
-          console.error('[Email Hint] Gmail authentication failed! Make sure 2-Step Verification is ON and generate a 16-character App Password from https://myaccount.google.com/apppasswords');
-        }
-        emailError = err.message;
-      }
-    }
-  }
-
-  if (!emailSent) {
-    console.warn(`[Email Dispatch Notice] No real email provider active. To deliver live OTP to Sir's inbox, set BREVO_API_KEY or SMTP_USER & SMTP_PASS in backend/.env.`);
-  }
+  // Dispatch real email via Brevo API / SMTP
+  const emailSent = await sendCustomEmail({
+    to: normalizedKey,
+    subject: `[SahakarGig] ${otp} is your verification passcode`,
+    htmlContent: getOtpEmailHtml({ otp, name, role, recipient: normalizedKey })
+  });
 
   return res.json({
     success: true,
@@ -603,10 +792,8 @@ router.post('/auth/send-otp', async (req, res) => {
     recipient: normalizedKey,
     otp,
     realEmailSent: emailSent,
-    provider: providerUsed,
-    emailError,
     message: emailSent 
-      ? `Real security code dispatched to ${normalizedKey} via ${providerUsed}` 
+      ? `Real security code dispatched to ${normalizedKey}` 
       : `Passcode generated for ${normalizedKey}. Enter code to verify.`
   });
 });
