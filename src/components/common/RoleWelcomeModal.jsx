@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, HardHat, ShieldCheck, Star, Sparkles, ArrowRight, CheckCircle2, MapPin } from 'lucide-react';
+import { Users, HardHat, ShieldCheck, Star, Sparkles, ArrowRight, CheckCircle2, MapPin, Building } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 
 export function RoleWelcomeModal({ isOpen, onClose }) {
@@ -138,6 +138,35 @@ export function RoleWelcomeModal({ isOpen, onClose }) {
             </button>
           </div>
 
+        </div>
+
+        {/* Institutional Portals Quick Access */}
+        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs">
+          <span className="font-bold text-slate-600">Institutional Governance & Oversight:</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleSelectRole('cooperative')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
+                currentRole === 'cooperative'
+                  ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                  : 'bg-white hover:bg-purple-50 text-purple-900 border-purple-200'
+              }`}
+            >
+              <Building className="w-3.5 h-3.5 text-purple-600" />
+              <span>Cooperative Board</span>
+            </button>
+            <button
+              onClick={() => handleSelectRole('ministry')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
+                currentRole === 'ministry'
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                  : 'bg-white hover:bg-blue-50 text-blue-900 border-blue-200'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+              <span>National Ministry Oversight</span>
+            </button>
+          </div>
         </div>
 
         {/* Footer Note */}

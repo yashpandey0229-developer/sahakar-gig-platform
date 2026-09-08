@@ -208,8 +208,12 @@ export const COOP_WELFARE_METRICS = {
 };
 
 export const MINISTRY_STATS = {
+  registeredCooperatives: 148,
   nationalRegisteredCooperatives: 148,
+  activeWorkers: 18450,
   totalEmpoweredArtisans: 42800,
+  welfareReserveFund: 1485200,
+  patronageDividendsDistributed: 4280000,
   capitalReturnedToWorkersCr: 84.6,
   intermediaryCommissionSavedCr: 19.8,
   modelAdoptionStates: ['Maharashtra', 'Karnataka', 'Gujarat', 'Kerala', 'Tamil Nadu', 'Madhya Pradesh']

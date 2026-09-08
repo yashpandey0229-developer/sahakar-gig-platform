@@ -388,9 +388,18 @@ export const COOP_WELFARE_METRICS = {
 };
 
 export const MINISTRY_STATS = {
-  totalRegisteredGigCooperatives: 142,
+  registeredCooperatives: 148,
+  totalRegisteredGigCooperatives: 148,
+  nationalRegisteredCooperatives: 148,
+  activeWorkers: 18450,
   totalEmpoweredWorkers: 18450,
+  totalEmpoweredArtisans: 18450,
+  welfareReserveFund: 1485200,
+  patronageDividendsDistributed: 4280000,
+  totalPatronageDividendsDistributed: 4280000,
   totalDividendsPaidOutToDate: 42800000, // ₹4.28 Crores
+  capitalReturnedToWorkersCr: 84.6,
+  intermediaryCommissionSavedCr: 19.8,
   nationalAverageSatisfaction: 4.88,
   stateCoverage: [
     { state: 'Maharashtra', cooperatives: 48, workers: 6200, welfareFund: '₹1.8 Cr', compliance: '98%' },

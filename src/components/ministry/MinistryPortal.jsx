@@ -17,7 +17,31 @@ import {
 import { useAppState } from '../../context/AppStateContext';
 
 export function MinistryPortal() {
-  const { ministryStats, welfareMetrics, workers, proposals, disputes } = useAppState();
+  const { ministryStats = {}, welfareMetrics = {}, workers = [] } = useAppState();
+
+  const registeredCoops = ministryStats?.registeredCooperatives 
+    ?? ministryStats?.totalRegisteredGigCooperatives 
+    ?? ministryStats?.nationalRegisteredCooperatives 
+    ?? 148;
+
+  const rawActiveWorkers = ministryStats?.activeWorkers 
+    ?? ministryStats?.totalEmpoweredWorkers 
+    ?? ministryStats?.totalEmpoweredArtisans 
+    ?? 18450;
+  const activeWorkersDisplay = typeof rawActiveWorkers === 'number'
+    ? rawActiveWorkers.toLocaleString()
+    : String(rawActiveWorkers || '18,450');
+
+  const rawWelfare = ministryStats?.welfareReserveFund 
+    ?? welfareMetrics?.totalReserveFund 
+    ?? 1485200;
+  const welfareReserveLakhs = (Number(rawWelfare) / 100000).toFixed(2);
+
+  const rawDividends = ministryStats?.patronageDividendsDistributed 
+    ?? ministryStats?.totalPatronageDividendsDistributed 
+    ?? (ministryStats?.totalDividendsPaidOutToDate ? Math.round(ministryStats.totalDividendsPaidOutToDate / 10) : 4280000) 
+    ?? 4280000;
+  const dividendsLakhs = (Number(rawDividends) / 100000).toFixed(2);
 
   const handleExportAudit = () => {
     const csvContent = [
@@ -26,13 +50,13 @@ export function MinistryPortal() {
       ['Exported At', new Date().toISOString()],
       [],
       ['Metric', 'Statutory Value', 'Unit / Benchmark'],
-      ['Registered Cooperatives (PACS / MSCS)', ministryStats.registeredCooperatives, 'Federated Units'],
-      ['Active Cooperative Artisans', ministryStats.activeWorkers, 'Verified NSDC Level 3+'],
-      ['Collective Welfare Reserve Corpus', `₹${ministryStats.welfareReserveFund}`, 'DCCB Escrow Pool (7% Per Gig)'],
-      ['Patronage Dividends Paid Out', `₹${ministryStats.totalPatronageDividendsDistributed}`, 'Distributed to Workers (100% Surplus)'],
-      ['Average Worker Hourly Uplift', `+${welfareMetrics.averageWorkerHourlyUplift || 38.4}%`, 'Compared to Private Aggregators'],
-      ['Health Insurance Claims Settled', welfareMetrics.healthInsuranceClaimsSettled || 14, '100% Cashless Approvals'],
-      ['Tool Subsidies Granted', welfareMetrics.toolSubsidiesDisbursed || 38, 'Electricians & Plumbers'],
+      ['Registered Cooperatives (PACS / MSCS)', registeredCoops, 'Federated Units'],
+      ['Active Cooperative Artisans', activeWorkersDisplay, 'Verified NSDC Level 3+'],
+      ['Collective Welfare Reserve Corpus', `₹${Number(rawWelfare).toLocaleString()}`, 'DCCB Escrow Pool (7% Per Gig)'],
+      ['Patronage Dividends Paid Out', `₹${Number(rawDividends).toLocaleString()}`, 'Distributed to Workers (100% Surplus)'],
+      ['Average Worker Hourly Uplift', `+${welfareMetrics?.averageWorkerHourlyUplift || 38.4}%`, 'Compared to Private Aggregators'],
+      ['Health Insurance Claims Settled', welfareMetrics?.healthInsuranceClaimsSettled || 14, '100% Cashless Approvals'],
+      ['Tool Subsidies Granted', welfareMetrics?.toolSubsidiesDisbursed || 38, 'Electricians & Plumbers'],
       [],
       ['State', 'Active PACS', 'Artisan Count', 'Monthly GMV (₹)'],
       ['Maharashtra', '64', '8,420', '48,50,000'],
@@ -86,52 +110,52 @@ export function MinistryPortal() {
       {/* 4 National Macro KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         
-        <div className="glass-card rounded-3xl p-6">
+        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between text-xs text-blue-700 font-bold mb-1">
             <span>Federated Cooperatives</span>
             <Building className="w-4 h-4 text-blue-600" />
           </div>
           <div className="text-3xl font-black text-slate-900">
-            {ministryStats.registeredCooperatives}
+            {registeredCoops}
           </div>
           <span className="text-[11px] text-emerald-700 font-bold block mt-2">
             +18 new PACS registered this month
           </span>
         </div>
 
-        <div className="glass-card rounded-3xl p-6">
+        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between text-xs text-emerald-700 font-bold mb-1">
             <span>Active Cooperative Artisans</span>
             <Users className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-3xl font-black text-slate-900">
-            {ministryStats.activeWorkers.toLocaleString()}
+            {activeWorkersDisplay}
           </div>
           <span className="text-[11px] text-emerald-700 font-bold block mt-2">
             94.2% NSDC Skill Certified
           </span>
         </div>
 
-        <div className="glass-card rounded-3xl p-6">
+        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between text-xs text-amber-700 font-bold mb-1">
             <span>Collective Welfare Reserve</span>
             <ShieldCheck className="w-4 h-4 text-amber-600" />
           </div>
           <div className="text-3xl font-black text-slate-900">
-            ₹{(ministryStats.welfareReserveFund / 100000).toFixed(2)} Lakhs
+            ₹{welfareReserveLakhs} Lakhs
           </div>
           <span className="text-[11px] text-amber-700 font-bold block mt-2">
             100% Cashless Health Insurance
           </span>
         </div>
 
-        <div className="glass-card rounded-3xl p-6">
+        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between text-xs text-purple-700 font-bold mb-1">
             <span>Total Patronage Dividends</span>
             <TrendingUp className="w-4 h-4 text-purple-600" />
           </div>
           <div className="text-3xl font-black text-slate-900">
-            ₹{(ministryStats.patronageDividendsDistributed / 100000).toFixed(2)} Lakhs
+            ₹{dividendsLakhs} Lakhs
           </div>
           <span className="text-[11px] text-purple-700 font-bold block mt-2">
             Returned to member workers
@@ -171,8 +195,8 @@ export function MinistryPortal() {
                   <MapPin className="w-3.5 h-3.5 text-emerald-600" />
                   Maharashtra (Pune & Mumbai Metro)
                 </td>
-                <td className="p-3.5 text-slate-700 font-bold">42 Societies</td>
-                <td className="p-3.5 text-slate-900 font-black">4,820 Artisans</td>
+                <td className="p-3.5 text-slate-700 font-bold">48 Societies</td>
+                <td className="p-3.5 text-slate-900 font-black">6,200 Artisans</td>
                 <td className="p-3.5 text-emerald-700 font-black">88.0% Direct Pay</td>
                 <td className="p-3.5"><span className="bg-emerald-100 text-emerald-800 text-[10px] px-2.5 py-0.5 rounded-full font-black">⭐⭐⭐⭐⭐ AAA (Optimal)</span></td>
               </tr>
@@ -181,8 +205,8 @@ export function MinistryPortal() {
                   <MapPin className="w-3.5 h-3.5 text-emerald-600" />
                   Karnataka (Bengaluru Urban & Rural)
                 </td>
-                <td className="p-3.5 text-slate-700 font-bold">28 Societies</td>
-                <td className="p-3.5 text-slate-900 font-black">3,150 Artisans</td>
+                <td className="p-3.5 text-slate-700 font-bold">32 Societies</td>
+                <td className="p-3.5 text-slate-900 font-black">4,100 Artisans</td>
                 <td className="p-3.5 text-emerald-700 font-black">88.0% Direct Pay</td>
                 <td className="p-3.5"><span className="bg-emerald-100 text-emerald-800 text-[10px] px-2.5 py-0.5 rounded-full font-black">⭐⭐⭐⭐⭐ AAA (Optimal)</span></td>
               </tr>
@@ -191,8 +215,28 @@ export function MinistryPortal() {
                   <MapPin className="w-3.5 h-3.5 text-emerald-600" />
                   Gujarat (Ahmedabad & Surat)
                 </td>
-                <td className="p-3.5 text-slate-700 font-bold">35 Societies</td>
-                <td className="p-3.5 text-slate-900 font-black">2,900 Artisans</td>
+                <td className="p-3.5 text-slate-700 font-bold">28 Societies</td>
+                <td className="p-3.5 text-slate-900 font-black">3,800 Artisans</td>
+                <td className="p-3.5 text-emerald-700 font-black">88.0% Direct Pay</td>
+                <td className="p-3.5"><span className="bg-emerald-100 text-emerald-800 text-[10px] px-2.5 py-0.5 rounded-full font-black">⭐⭐⭐⭐⭐ AAA (Optimal)</span></td>
+              </tr>
+              <tr className="hover:bg-slate-50">
+                <td className="p-3.5 font-black text-slate-900 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                  Delhi NCR (South & Central)
+                </td>
+                <td className="p-3.5 text-slate-700 font-bold">20 Societies</td>
+                <td className="p-3.5 text-slate-900 font-black">2,600 Artisans</td>
+                <td className="p-3.5 text-emerald-700 font-black">88.0% Direct Pay</td>
+                <td className="p-3.5"><span className="bg-emerald-100 text-emerald-800 text-[10px] px-2.5 py-0.5 rounded-full font-black">⭐⭐⭐⭐⭐ AAA (Optimal)</span></td>
+              </tr>
+              <tr className="hover:bg-slate-50">
+                <td className="p-3.5 font-black text-slate-900 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                  Tamil Nadu (Chennai & Coimbatore)
+                </td>
+                <td className="p-3.5 text-slate-700 font-bold">14 Societies</td>
+                <td className="p-3.5 text-slate-900 font-black">1,750 Artisans</td>
                 <td className="p-3.5 text-emerald-700 font-black">88.0% Direct Pay</td>
                 <td className="p-3.5"><span className="bg-emerald-100 text-emerald-800 text-[10px] px-2.5 py-0.5 rounded-full font-black">⭐⭐⭐⭐⭐ AAA (Optimal)</span></td>
               </tr>
