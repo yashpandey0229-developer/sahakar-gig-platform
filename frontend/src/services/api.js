@@ -12,10 +12,11 @@ async function fetchJson(endpoint, options = {}) {
       },
       ...options,
     });
+    const data = await res.json().catch(() => null);
     if (!res.ok) {
-      throw new Error(`API error ${res.status}: ${res.statusText}`);
+      return data || { error: res.statusText, status: res.status, verified: false };
     }
-    return await res.json();
+    return data;
   } catch (error) {
     // Graceful fallback for local development if server is restarting
     console.warn(`[API Warning] ${endpoint}:`, error.message);

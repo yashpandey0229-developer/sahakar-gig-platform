@@ -390,11 +390,17 @@ const getMailTransporter = () => {
   
   const service = process.env.SMTP_SERVICE || (user.includes('gmail.com') ? 'gmail' : undefined);
   
+  if (service === 'gmail' || (!service && user.includes('gmail.com'))) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass }
+    });
+  }
+
   return nodemailer.createTransport({
-    service,
-    host: process.env.SMTP_HOST || (!service ? 'smtp.gmail.com' : undefined),
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: process.env.SMTP_SECURE === 'true',
+    secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
     auth: { user, pass }
   });
 };
@@ -423,110 +429,88 @@ router.post('/auth/send-otp', async (req, res) => {
 
   console.log(`[OTP Generated] ${type.toUpperCase()} for ${recipient}: ${otp}`);
 
-  // Channel: EMAIL
-  if (type === 'email') {
-    const transporter = getMailTransporter();
-    let emailSent = false;
-    let emailError = null;
+  // Channel: EMAIL AUTHENTICATOR
+  const transporter = getMailTransporter();
+  let emailSent = false;
+  let emailError = null;
 
-    if (transporter) {
-      try {
-        const mailOptions = {
-          from: process.env.SMTP_FROM || `"SahakarGig Cooperative" <${process.env.SMTP_USER || process.env.GMAIL_USER}>`,
-          to: recipient,
-          subject: `[SahakarGig] Your Verification Code: ${otp}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #FAF7F0;">
-              <div style="text-align: center; margin-bottom: 20px;">
-                <h1 style="color: #1B4D3E; margin: 0; font-size: 26px;">Sahakar<span style="font-style: italic;">Gig</span></h1>
-                <p style="color: #64748b; font-size: 12px; margin-top: 4px;">Democratizing Gig Work · 88% Direct Payouts</p>
-              </div>
-              <div style="background-color: #ffffff; padding: 24px; border-radius: 12px; border: 1px solid #cbd5e1; text-align: center;">
-                <h2 style="color: #1e293b; font-size: 18px; margin-top: 0;">${name ? `Hello ${name}!` : 'Hello Citizen / Partner!'}</h2>
-                <p style="color: #475569; font-size: 14px; line-height: 1.5;">
-                  Your one-time authentication code for SahakarGig (${role === 'worker' ? 'Cooperative Partner' : 'Citizen App'}) is:
-                </p>
-                <div style="margin: 24px 0; display: inline-block; padding: 14px 28px; background-color: #1B4D3E; color: #ffffff; font-size: 32px; font-weight: 800; letter-spacing: 6px; border-radius: 12px; font-family: monospace;">
-                  ${otp}
+  if (transporter) {
+    try {
+      const mailOptions = {
+        from: process.env.SMTP_FROM || `"SahakarGig Security" <${process.env.SMTP_USER || process.env.GMAIL_USER}>`,
+        to: recipient,
+        subject: `[SahakarGig] ${otp} is your verification passcode`,
+        html: `
+          <div style="background-color: #f8fafc; padding: 40px 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <div style="max-width: 520px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+              
+              <!-- Official Header -->
+              <div style="background: linear-gradient(135deg, #111C26 0%, #1B4D3E 100%); padding: 32px 24px; text-align: center;">
+                <div style="display: inline-block; width: 44px; height: 44px; line-height: 44px; background-color: rgba(255,255,255,0.15); border-radius: 50%; color: #ffffff; font-size: 20px; font-weight: bold; margin-bottom: 12px;">
+                  ★
                 </div>
-                <p style="color: #94a3b8; font-size: 12px; margin: 0;">
-                  This code is valid for 10 minutes. Please do not share it with anyone.
+                <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Sahakar<span style="color: #6ee7b7; font-style: italic;">Gig</span></h1>
+                <p style="margin: 6px 0 0 0; color: #cbd5e1; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">
+                  Official Cooperative Two-Factor Authentication
                 </p>
               </div>
-              <div style="text-align: center; margin-top: 20px; color: #94a3b8; font-size: 11px;">
-                © 2026 SahakarGig National Multi-State Cooperative Society. All rights reserved.
+
+              <!-- Content Body -->
+              <div style="padding: 36px 32px; text-align: center;">
+                <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 20px; font-weight: 700;">
+                  ${name ? `Hello ${name}!` : 'Verify Your Identity'}
+                </h2>
+                <p style="margin: 0 0 24px 0; color: #475569; font-size: 14px; line-height: 1.5;">
+                  Use the following single-use verification passcode to authenticate your <strong>${role === 'worker' ? 'Cooperative Partner' : 'Citizen App'}</strong> account:
+                </p>
+
+                <!-- Passcode Box -->
+                <div style="background-color: #f0fdf4; border: 2px dashed #86efac; border-radius: 14px; padding: 22px; margin: 24px 0;">
+                  <div style="font-size: 40px; font-weight: 800; letter-spacing: 10px; color: #1B4D3E; font-family: 'Courier New', Courier, monospace; margin-left: 10px;">
+                    ${otp}
+                  </div>
+                  <div style="margin-top: 10px; color: #15803d; font-size: 12px; font-weight: 700;">
+                    ⏱ Valid for 10 minutes only
+                  </div>
+                </div>
+
+                <!-- Security Advisory -->
+                <div style="background-color: #fff1f2; border: 1px solid #fecdd3; border-radius: 10px; padding: 14px; margin-top: 24px; text-align: left;">
+                  <p style="margin: 0; color: #9f1239; font-size: 12px; line-height: 1.4;">
+                    <strong>Security Advisory:</strong> Sahakar officers or administrators will NEVER ask for this passcode. If you did not initiate this login request, please discard this email immediately.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Footer -->
+              <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 24px; text-align: center; color: #94a3b8; font-size: 11px; line-height: 1.5;">
+                This message was sent to <strong>${recipient}</strong> • Democratic Gig Work Protocol<br/>
+                Ministry of Cooperation Initiative • Government of India
               </div>
             </div>
-          `
-        };
-        await transporter.sendMail(mailOptions);
-        emailSent = true;
-        console.log(`[Email Sent] Successfully dispatched OTP to ${recipient}`);
-      } catch (err) {
-        console.warn(`[Email Error] Failed to dispatch real email to ${recipient}:`, err.message);
-        emailError = err.message;
-      }
+          </div>
+        `
+      };
+      await transporter.sendMail(mailOptions);
+      emailSent = true;
+      console.log(`[Email Sent] Successfully dispatched OTP to ${recipient}`);
+    } catch (err) {
+      console.warn(`[Email Error] Failed to dispatch real email to ${recipient}:`, err.message);
+      emailError = err.message;
     }
-
-    return res.json({
-      success: true,
-      channel: 'email',
-      recipient,
-      otp,
-      realEmailSent: emailSent,
-      emailError,
-      message: emailSent 
-        ? `Real verification email sent to ${recipient}` 
-        : `OTP generated for ${recipient}. Enter OTP to verify.`
-    });
   }
 
-  // Channel: PHONE (SMS & WhatsApp)
-  if (type === 'phone') {
-    const rawDigits = recipient.replace(/\D/g, '');
-    const phone10 = rawDigits.length >= 10 ? rawDigits.slice(-10) : rawDigits;
-    const fullPhone = `91${phone10}`;
-    
-    // 1-Click WhatsApp Direct Dispatch Link
-    const waText = encodeURIComponent(
-      `नमस्ते! सहकारगिग (SahakarGig) सत्यापन कोड: ${otp}। यह कोड 10 मिनट के लिए मान्य है। कृपया इसे किसी के साथ साझा न करें।\n\nYour SahakarGig OTP is: ${otp}. Valid for 10 minutes.`
-    );
-    const waLink = `https://wa.me/${fullPhone}?text=${waText}`;
-    
-    // Direct Device SMS Link
-    const smsText = encodeURIComponent(`Your SahakarGig OTP is ${otp}. Valid for 10 minutes.`);
-    const smsLink = `sms:+${fullPhone}?body=${smsText}`;
-
-    // Optional Telecom Gateway API (Fast2SMS)
-    let gatewaySent = false;
-    if (process.env.FAST2SMS_API_KEY && phone10.length === 10) {
-      try {
-        const f2sUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${process.env.FAST2SMS_API_KEY}&route=otp&variables_values=${otp}&numbers=${phone10}`;
-        const f2sRes = await fetch(f2sUrl);
-        const f2sData = await f2sRes.json();
-        if (f2sData.return) gatewaySent = true;
-      } catch (e) {
-        console.warn('[Fast2SMS Error]:', e.message);
-      }
-    }
-
-    return res.json({
-      success: true,
-      channel: 'phone',
-      recipient,
-      cleanPhone: fullPhone,
-      phone10,
-      otp,
-      waLink,
-      smsLink,
-      gatewaySent,
-      message: gatewaySent 
-        ? `SMS sent to +91 ${phone10}` 
-        : `Real WhatsApp & SMS dispatch link generated for +91 ${phone10}`
-    });
-  }
-
-  return res.status(400).json({ success: false, message: 'Invalid delivery type.' });
+  return res.json({
+    success: true,
+    channel: 'email',
+    recipient,
+    otp,
+    realEmailSent: emailSent,
+    emailError,
+    message: emailSent 
+      ? `Real security code dispatched to ${recipient}` 
+      : `Passcode generated for ${recipient}. Enter code to verify.`
+  });
 });
 
 // POST /api/auth/verify-otp

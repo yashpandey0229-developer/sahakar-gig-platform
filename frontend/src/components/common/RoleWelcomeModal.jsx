@@ -20,9 +20,8 @@ import {
   Mail,
   KeyRound,
   Send,
-  Phone,
-  MessageCircle,
-  Smartphone
+  Lock,
+  CheckCheck
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 import { api } from '../../services/api';
@@ -36,7 +35,7 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
     workers,
     registerWorker,
     customer, 
-    updateCustomerProfile,
+    updateCustomerProfile, 
     language, 
     detectUserLocation, 
     isLocating,
@@ -58,20 +57,14 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
     customer?.id || ('CIT-MH-' + Math.floor(1000 + Math.random() * 9000))
   );
 
-  // Customer OTP states
-  const [custEmailOtpSent, setCustEmailOtpSent] = useState(false);
+  // Customer Email Authenticator States
+  const [custStep, setCustStep] = useState('form'); // 'form' | 'otp'
   const [custEmailSending, setCustEmailSending] = useState(false);
   const [custGeneratedOtp, setCustGeneratedOtp] = useState('');
   const [custInputOtp, setCustInputOtp] = useState('');
   const [custEmailVerified, setCustEmailVerified] = useState(false);
   const [custRealEmailSent, setCustRealEmailSent] = useState(false);
-
-  const [custPhoneOtpSent, setCustPhoneOtpSent] = useState(false);
-  const [custPhoneSending, setCustPhoneSending] = useState(false);
-  const [custPhoneWaLink, setCustPhoneWaLink] = useState('');
-  const [custPhoneSmsLink, setCustPhoneSmsLink] = useState('');
-  const [custPhoneInputOtp, setCustPhoneInputOtp] = useState('');
-  const [custPhoneVerified, setCustPhoneVerified] = useState(false);
+  const [custTimer, setCustTimer] = useState(0);
 
   // Worker Form State
   const [workForm, setWorkForm] = useState({
@@ -87,25 +80,39 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
     activeWorker?.cooperativeMemberId || ('COOP-MH-' + Math.floor(1000 + Math.random() * 9000))
   );
 
-  // Worker OTP states
-  const [workEmailOtpSent, setWorkEmailOtpSent] = useState(false);
+  // Worker Email Authenticator States
+  const [workStep, setWorkStep] = useState('form'); // 'form' | 'otp'
   const [workEmailSending, setWorkEmailSending] = useState(false);
   const [workGeneratedOtp, setWorkGeneratedOtp] = useState('');
   const [workInputOtp, setWorkInputOtp] = useState('');
   const [workEmailVerified, setWorkEmailVerified] = useState(false);
   const [workRealEmailSent, setWorkRealEmailSent] = useState(false);
+  const [workTimer, setWorkTimer] = useState(0);
 
-  const [workPhoneOtpSent, setWorkPhoneOtpSent] = useState(false);
-  const [workPhoneSending, setWorkPhoneSending] = useState(false);
-  const [workPhoneWaLink, setWorkPhoneWaLink] = useState('');
-  const [workPhoneSmsLink, setWorkPhoneSmsLink] = useState('');
-  const [workPhoneInputOtp, setWorkPhoneInputOtp] = useState('');
-  const [workPhoneVerified, setWorkPhoneVerified] = useState(false);
+  // Countdown Timers
+  useEffect(() => {
+    let interval = null;
+    if (custTimer > 0) {
+      interval = setInterval(() => setCustTimer(t => t - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [custTimer]);
+
+  useEffect(() => {
+    let interval = null;
+    if (workTimer > 0) {
+      interval = setInterval(() => setWorkTimer(t => t - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [workTimer]);
 
   // Sync state when modal opens or initialMode changes
   useEffect(() => {
     if (isOpen) {
       setMode(initialMode || 'select');
+      setCustStep('form');
+      setWorkStep('form');
+
       setCustForm({
         name: customer?.name || '',
         email: customer?.email || 'priya.sharma@sahakar.org',
@@ -147,104 +154,65 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
       });
       const code = res?.otp || Math.floor(100000 + Math.random() * 900000).toString();
       setCustGeneratedOtp(code);
-      setCustEmailOtpSent(true);
-      setCustInputOtp(code);
+      setCustInputOtp('');
       setCustRealEmailSent(!!res?.realEmailSent);
+      setCustStep('otp');
+      setCustTimer(60);
 
       if (res?.realEmailSent) {
         addNotification(
-          'Email Dispatched to Inbox',
-          `Verification code sent to ${custForm.email}. Check your inbox!`,
+          'Email Authenticator Code Sent',
+          `An official 6-digit security code was dispatched to ${custForm.email}. Check your inbox!`,
           'success'
         );
       } else {
         addNotification(
-          'Email OTP Ready',
-          `Verification code: ${code}`,
+          'Security Passcode Dispatched',
+          `Verification passcode for ${custForm.email}: ${code}`,
           'info'
         );
       }
     } catch (e) {
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       setCustGeneratedOtp(code);
-      setCustEmailOtpSent(true);
-      setCustInputOtp(code);
-      addNotification('Email OTP Generated', `Code: ${code}`, 'info');
+      setCustInputOtp('');
+      setCustStep('otp');
+      setCustTimer(60);
+      addNotification('Security Passcode Ready', `Passcode: ${code}`, 'info');
     } finally {
       setCustEmailSending(false);
     }
   };
 
-  // Send Customer Phone / WhatsApp OTP
-  const handleSendCustPhoneOtp = async () => {
-    if (!custForm.phone || custForm.phone.replace(/\D/g, '').length < 10) {
-      alert('Please enter a valid 10-digit mobile number.');
+  // Verify Customer Email OTP
+  const handleVerifyCustOtp = async (codeToVerify) => {
+    const code = (codeToVerify || custInputOtp).trim();
+    if (!code || code.length < 6) {
+      alert('Please enter the full 6-digit verification passcode received on your email.');
       return;
     }
-    setCustPhoneSending(true);
-    try {
-      const res = await api.sendOtp({
-        type: 'phone',
-        recipient: custForm.phone,
-        role: 'customer',
-        name: custForm.name
-      });
-      const code = res?.otp || Math.floor(100000 + Math.random() * 900000).toString();
-      setCustGeneratedOtp(code);
-      setCustPhoneOtpSent(true);
-      setCustPhoneInputOtp(code);
-      const clean = custForm.phone.replace(/\D/g, '');
-      const wa = res?.waLink || `https://wa.me/91${clean.slice(-10)}?text=${encodeURIComponent(`नमस्ते! सहकारगिग (SahakarGig) सत्यापन कोड: ${code}। यह कोड 10 मिनट के लिए मान्य है। कृपया इसे किसी के साथ साझा न करें।\n\nYour SahakarGig Verification OTP is: ${code}. Valid for 10 minutes.`)}`;
-      setCustPhoneWaLink(wa);
-      setCustPhoneSmsLink(res?.smsLink || `sms:+91${clean.slice(-10)}?body=${encodeURIComponent(`Your SahakarGig OTP is ${code}`)}`);
-
-      // Automatically launch WhatsApp with pre-filled OTP message for teammate
-      try {
-        window.open(wa, '_blank');
-      } catch (err) {}
-
-      addNotification(
-        'WhatsApp Launched',
-        `Sending verification code ${code} to ${custForm.phone} via WhatsApp`,
-        'success'
-      );
-    } catch (e) {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      setCustGeneratedOtp(code);
-      setCustPhoneOtpSent(true);
-      setCustPhoneInputOtp(code);
-      const clean = custForm.phone.replace(/\D/g, '');
-      const wa = `https://wa.me/91${clean.slice(-10)}?text=${encodeURIComponent(`नमस्ते! सहकारगिग (SahakarGig) सत्यापन कोड: ${code}। यह कोड 10 मिनट के लिए मान्य है।\n\nYour SahakarGig Verification OTP is: ${code}`)}`;
-      setCustPhoneWaLink(wa);
-      try {
-        window.open(wa, '_blank');
-      } catch (err) {}
-    } finally {
-      setCustPhoneSending(false);
-    }
-  };
-
-  // Verify Customer OTP
-  const handleVerifyCustOtp = async (codeToVerify, targetRecipient) => {
-    const code = codeToVerify || custInputOtp;
-    const recipient = targetRecipient || custForm.email;
 
     try {
-      const res = await api.verifyOtp({ recipient, otp: code });
+      const res = await api.verifyOtp({ recipient: custForm.email, otp: code });
       if (res?.verified) {
         setCustEmailVerified(true);
-        setCustPhoneVerified(true);
-        addNotification('Authentication Successful', `Verified for ${recipient}`, 'success');
+        setCustStep('form');
+        addNotification('Authentication Successful', `Citizen email verified for ${custForm.email}`, 'success');
+        return;
+      }
+      if (res && res.verified === false) {
+        alert(res.message || 'Incorrect passcode. Please check your email and try again.');
         return;
       }
     } catch (e) {}
 
-    if (code === custGeneratedOtp || code.length >= 4) {
+    // Offline / direct match fallback
+    if (code === custGeneratedOtp) {
       setCustEmailVerified(true);
-      setCustPhoneVerified(true);
-      addNotification('Authentication Successful', `Verified for ${recipient}`, 'success');
+      setCustStep('form');
+      addNotification('Authentication Successful', `Citizen email verified for ${custForm.email}`, 'success');
     } else {
-      alert('Incorrect OTP code. Please check and try again.');
+      alert('Incorrect passcode. Please check your email and try again.');
     }
   };
 
@@ -264,104 +232,65 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
       });
       const code = res?.otp || Math.floor(100000 + Math.random() * 900000).toString();
       setWorkGeneratedOtp(code);
-      setWorkEmailOtpSent(true);
-      setWorkInputOtp(code);
+      setWorkInputOtp('');
       setWorkRealEmailSent(!!res?.realEmailSent);
+      setWorkStep('otp');
+      setWorkTimer(60);
 
       if (res?.realEmailSent) {
         addNotification(
-          'Email Dispatched to Inbox',
-          `Partner code sent to ${workForm.email}. Check inbox!`,
+          'Partner Email Code Sent',
+          `An official 6-digit security code was dispatched to ${workForm.email}. Check your inbox!`,
           'success'
         );
       } else {
         addNotification(
-          'Partner OTP Ready',
-          `Code for ${workForm.email}: ${code}`,
+          'Partner Security Code Ready',
+          `Verification passcode for ${workForm.email}: ${code}`,
           'info'
         );
       }
     } catch (e) {
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       setWorkGeneratedOtp(code);
-      setWorkEmailOtpSent(true);
-      setWorkInputOtp(code);
-      addNotification('Partner OTP Generated', `Code: ${code}`, 'info');
+      setWorkInputOtp('');
+      setWorkStep('otp');
+      setWorkTimer(60);
+      addNotification('Partner Passcode Ready', `Passcode: ${code}`, 'info');
     } finally {
       setWorkEmailSending(false);
     }
   };
 
-  // Send Worker Phone / WhatsApp OTP
-  const handleSendWorkPhoneOtp = async () => {
-    if (!workForm.phone || workForm.phone.replace(/\D/g, '').length < 10) {
-      alert('Please enter a valid 10-digit mobile number.');
+  // Verify Worker Email OTP
+  const handleVerifyWorkOtp = async (codeToVerify) => {
+    const code = (codeToVerify || workInputOtp).trim();
+    if (!code || code.length < 6) {
+      alert('Please enter the full 6-digit verification passcode received on your email.');
       return;
     }
-    setWorkPhoneSending(true);
-    try {
-      const res = await api.sendOtp({
-        type: 'phone',
-        recipient: workForm.phone,
-        role: 'worker',
-        name: workForm.name
-      });
-      const code = res?.otp || Math.floor(100000 + Math.random() * 900000).toString();
-      setWorkGeneratedOtp(code);
-      setWorkPhoneOtpSent(true);
-      setWorkPhoneInputOtp(code);
-      const clean = workForm.phone.replace(/\D/g, '');
-      const wa = res?.waLink || `https://wa.me/91${clean.slice(-10)}?text=${encodeURIComponent(`नमस्ते! सहकारगिग (SahakarGig) पार्टनर कोड: ${code}। यह कोड 10 मिनट के लिए मान्य है। कृपया इसे किसी के साथ साझा न करें।\n\nYour SahakarGig Partner OTP is: ${code}. Valid for 10 minutes.`)}`;
-      setWorkPhoneWaLink(wa);
-      setWorkPhoneSmsLink(res?.smsLink || `sms:+91${clean.slice(-10)}?body=${encodeURIComponent(`Your SahakarGig Partner OTP is ${code}`)}`);
-
-      // Automatically launch WhatsApp with pre-filled OTP message for teammate
-      try {
-        window.open(wa, '_blank');
-      } catch (err) {}
-
-      addNotification(
-        'WhatsApp Launched',
-        `Sending partner code ${code} to ${workForm.phone} via WhatsApp`,
-        'success'
-      );
-    } catch (e) {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      setWorkGeneratedOtp(code);
-      setWorkPhoneOtpSent(true);
-      setWorkPhoneInputOtp(code);
-      const clean = workForm.phone.replace(/\D/g, '');
-      const wa = `https://wa.me/91${clean.slice(-10)}?text=${encodeURIComponent(`नमस्ते! सहकारगिग (SahakarGig) पार्टनर कोड: ${code}। यह कोड 10 मिनट के लिए मान्य है।\n\nYour SahakarGig Partner OTP is: ${code}`)}`;
-      setWorkPhoneWaLink(wa);
-      try {
-        window.open(wa, '_blank');
-      } catch (err) {}
-    } finally {
-      setWorkPhoneSending(false);
-    }
-  };
-
-  // Verify Worker OTP
-  const handleVerifyWorkOtp = async (codeToVerify, targetRecipient) => {
-    const code = codeToVerify || workInputOtp;
-    const recipient = targetRecipient || workForm.email;
 
     try {
-      const res = await api.verifyOtp({ recipient, otp: code });
+      const res = await api.verifyOtp({ recipient: workForm.email, otp: code });
       if (res?.verified) {
         setWorkEmailVerified(true);
-        setWorkPhoneVerified(true);
-        addNotification('Partner Credentials Verified', `Verified for ${recipient}`, 'success');
+        setWorkStep('form');
+        addNotification('Partner Credentials Verified', `Cooperative email verified for ${workForm.email}`, 'success');
+        return;
+      }
+      if (res && res.verified === false) {
+        alert(res.message || 'Incorrect passcode. Please check your email and try again.');
         return;
       }
     } catch (e) {}
 
-    if (code === workGeneratedOtp || code.length >= 4) {
+    // Offline / direct match fallback
+    if (code === workGeneratedOtp) {
       setWorkEmailVerified(true);
-      setWorkPhoneVerified(true);
-      addNotification('Partner Credentials Verified', `Verified for ${recipient}`, 'success');
+      setWorkStep('form');
+      addNotification('Partner Credentials Verified', `Cooperative email verified for ${workForm.email}`, 'success');
     } else {
-      alert('Incorrect OTP code. Please check and try again.');
+      alert('Incorrect passcode. Please check your email and try again.');
     }
   };
 
@@ -392,6 +321,11 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
   // Submit Customer ID Creation / Login
   const handleCustomerSubmit = (e) => {
     e.preventDefault();
+    if (!custEmailVerified) {
+      handleSendCustEmailOtp();
+      return;
+    }
+
     const finalName = custForm.name.trim() || customer?.name || 'Priya Sharma';
     const finalEmail = custForm.email.trim() || customer?.email || 'citizen@sahakar.org';
     const finalPhone = custForm.phone.trim() || customer?.phone || '+91 98221 55601';
@@ -418,6 +352,11 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
   // Submit Worker ID Creation / Registration
   const handleWorkerSubmit = async (e) => {
     e.preventDefault();
+    if (!workEmailVerified) {
+      handleSendWorkEmailOtp();
+      return;
+    }
+
     const finalName = workForm.name.trim() || 'New Sahakari Partner';
     const finalEmail = workForm.email.trim() || (workForm.name ? `${workForm.name.toLowerCase().replace(/\s+/g, '.')}@coop.org` : 'partner@coop.org');
     const finalPhone = workForm.phone.trim() || '+91 98230 44819';
@@ -428,9 +367,10 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
       email: finalEmail,
       phone: finalPhone,
       skills: [workForm.skill],
-      societyName: workForm.societyName,
+      societyName: workForm.societyName || 'Pune Urban Multi-Trade Cooperative',
       cooperativeMemberId: finalMemberId,
-      bankAccountMasked: workForm.bankAccountMasked,
+      bankAccountMasked: workForm.bankAccountMasked || '•••• 7712 (UPI Verified)',
+      location: activeWorker?.location || { lat: 18.5298, lng: 73.8472 },
       address: workForm.address || 'Pune Urban Sector'
     });
 
@@ -443,21 +383,20 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
     onClose();
   };
 
-  // GPS for Customer
+  // GPS Helpers
   const handleCustomerGps = async () => {
     try {
       const geo = await detectUserLocation();
-      if (geo) {
+      if (geo?.address) {
         setCustForm(prev => ({ ...prev, address: geo.address }));
       }
     } catch (e) {}
   };
 
-  // GPS for Worker
   const handleWorkerGps = async () => {
     try {
       const geo = await detectWorkerLocation();
-      if (geo) {
+      if (geo?.address) {
         setWorkForm(prev => ({ ...prev, address: geo.address }));
       }
     } catch (e) {}
@@ -471,15 +410,23 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
         <div className="bg-[#111C26] text-white p-6 sm:p-7 text-center relative shrink-0">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold mb-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span>EMAIL AUTHENTICATION · REAL TEAMMATE DEMO</span>
+            <span>AUTHENTIC EMAIL PASSCODE AUTHENTICATION</span>
           </div>
 
           <div className="flex items-center justify-center gap-2">
             {mode !== 'select' && (
               <button
-                onClick={() => setMode('select')}
+                onClick={() => {
+                  if (mode === 'customer' && custStep === 'otp') {
+                    setCustStep('form');
+                  } else if (mode === 'worker' && workStep === 'otp') {
+                    setWorkStep('form');
+                  } else {
+                    setMode('select');
+                  }
+                }}
                 className="absolute left-6 top-7 p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-white text-xs font-bold transition flex items-center gap-1"
-                title="Back to role selection"
+                title="Back"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span className="hidden sm:inline">Back</span>
@@ -488,9 +435,9 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
 
             <h2 className="text-2xl sm:text-3xl font-black font-editorial tracking-tight text-white">
               {mode === 'customer' ? (
-                <span>Citizen Email Login & <span className="text-emerald-400 italic">ID Setup</span></span>
+                <span>Citizen Email <span className="text-emerald-400 italic">Authenticator</span></span>
               ) : mode === 'worker' ? (
-                <span>Artisan Partner <span className="text-amber-400 italic">Email Onboarding</span></span>
+                <span>Artisan Partner <span className="text-amber-400 italic">Authenticator</span></span>
               ) : (
                 <span>Welcome to Sahakar<span className="text-emerald-400 italic">Gig</span></span>
               )}
@@ -499,10 +446,10 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
 
           <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto mt-1.5 leading-relaxed font-sans">
             {mode === 'customer'
-              ? 'Register yourself or your teammate with email, address & real GPS location.'
+              ? 'Real email verification for home service receipts and citizen ID isolation.'
               : mode === 'worker'
-              ? 'Register your teammate as a cooperative artisan partner with trade & live GPS radar.'
-              : 'Please choose your persona or register your teammate. Data is strictly isolated.'}
+              ? 'Official cooperative email authentication for artisan ledger and 88% direct payout.'
+              : 'Please choose your portal or register your teammate. Data is strictly isolated.'}
           </p>
         </div>
 
@@ -634,8 +581,103 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
             </div>
           )}
 
-          {/* VIEW 2: CUSTOMER LOGIN / REGISTRATION FORM WITH EMAIL AUTH */}
-          {mode === 'customer' && (
+          {/* VIEW 2A: CUSTOMER EMAIL AUTHENTICATOR (STEP: OTP) */}
+          {mode === 'customer' && custStep === 'otp' && (
+            <div className="max-w-md mx-auto bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xl text-center space-y-5 animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 mx-auto rounded-3xl bg-emerald-100 text-[#1B4D3E] flex items-center justify-center text-3xl shadow-sm ring-8 ring-emerald-50">
+                <ShieldCheck className="w-9 h-9 text-[#1B4D3E]" />
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full font-mono">
+                  Two-Factor Security Passcode
+                </span>
+                <h3 className="text-2xl font-black text-slate-900 font-['Outfit'] pt-2">
+                  Check your Email
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
+                  We have sent an official 6-digit verification code to:
+                  <br />
+                  <span className="font-bold text-slate-900 font-mono text-sm">{custForm.email}</span>
+                </p>
+              </div>
+
+              {/* Status Notice */}
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-[11px] text-emerald-950 flex items-center justify-between">
+                <span>
+                  {custRealEmailSent 
+                    ? '✉️ Security email sent to your inbox!' 
+                    : `Passcode: ${custGeneratedOtp}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCustStep('form')}
+                  className="text-emerald-700 font-bold hover:underline"
+                >
+                  Edit Email
+                </button>
+              </div>
+
+              {/* 6-Digit Code Input */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 block text-left">
+                  Enter 6-Digit Passcode (6 अंकों का कोड दर्ज करें)
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  autoFocus
+                  placeholder="• • • • • •"
+                  value={custInputOtp}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setCustInputOtp(val);
+                    if (val.length === 6) {
+                      handleVerifyCustOtp(val);
+                    }
+                  }}
+                  className="w-full text-center text-3xl font-mono font-black tracking-[12px] py-3.5 rounded-2xl border-2 border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 bg-emerald-50/30 text-[#1B4D3E]"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Passcode expires in 10 minutes. Check your Spam folder if not in primary inbox.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => handleVerifyCustOtp(custInputOtp)}
+                  className="w-full py-3.5 rounded-2xl bg-[#1B4D3E] hover:bg-[#143c30] text-white text-xs font-black shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Verify Passcode & Continue</span>
+                </button>
+
+                <div className="flex items-center justify-between text-xs pt-1 text-slate-500">
+                  <span>Didn't receive code?</span>
+                  {custTimer > 0 ? (
+                    <span className="font-mono font-bold text-slate-600">
+                      Resend in 00:{custTimer < 10 ? `0${custTimer}` : custTimer}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSendCustEmailOtp}
+                      disabled={custEmailSending}
+                      className="font-bold text-emerald-700 hover:underline flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Resend Passcode</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW 2B: CUSTOMER REGISTRATION / PROFILE FORM (STEP: FORM) */}
+          {mode === 'customer' && custStep === 'form' && (
             <form onSubmit={handleCustomerSubmit} className="space-y-4 max-w-lg mx-auto bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
@@ -643,7 +685,7 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
                     🏠
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-900">Citizen Email & Profile</h4>
+                    <h4 className="text-sm font-bold text-slate-900">Citizen Profile & Email</h4>
                     <span className="text-[10px] text-slate-500 font-mono">Real teammate demo account</span>
                   </div>
                 </div>
@@ -677,7 +719,7 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
                 />
               </div>
 
-              {/* Email Authentication Block */}
+              {/* Email Authentication Row */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
@@ -686,7 +728,7 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
                   </label>
                   {custEmailVerified && (
                     <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified Email
                     </span>
                   )}
                 </div>
@@ -703,105 +745,41 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
                     placeholder="teammate@example.com"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
-                  <button
-                    type="button"
-                    onClick={handleSendCustEmailOtp}
-                    disabled={custEmailSending}
-                    className="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#1B4D3E] text-xs font-bold border border-emerald-300 whitespace-nowrap transition flex items-center gap-1"
-                  >
-                    {custEmailSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                    <span>Send Email OTP</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Mobile Phone Block with Real WhatsApp / SMS Dispatch */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                    <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Mobile Number (WhatsApp & SMS) *</span>
-                  </label>
-                  {custPhoneVerified && (
-                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="tel"
-                    required
-                    value={custForm.phone}
-                    onChange={(e) => {
-                      setCustForm({ ...custForm, phone: e.target.value });
-                      setCustPhoneVerified(false);
-                    }}
-                    placeholder="+91 98221 00000"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-mono font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSendCustPhoneOtp}
-                    disabled={custPhoneSending}
-                    className="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#1B4D3E] text-xs font-bold border border-emerald-300 whitespace-nowrap transition flex items-center gap-1.5 shadow-sm"
-                    title="Opens WhatsApp directly with teammate's phone to send the code"
-                  >
-                    {custPhoneSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />}
-                    <span>Send via WhatsApp</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Active Verification Card for Customer */}
-              {(custEmailOtpSent || custPhoneOtpSent) && (
-                <div className="p-3.5 rounded-2xl bg-emerald-50/90 border border-emerald-300 text-xs space-y-2.5 animate-in fade-in">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                    <span className="text-[11px] text-emerald-950 font-bold">
-                      {custRealEmailSent 
-                        ? '✉️ Real email sent to your inbox!' 
-                        : custPhoneOtpSent 
-                          ? '📲 Mobile OTP ready to send to teammate!' 
-                          : 'Verification OTP Generated:'} (Code: <strong className="font-mono text-emerald-800 text-sm">{custGeneratedOtp}</strong>)
-                    </span>
-                    {custPhoneWaLink && (
-                      <a
-                        href={custPhoneWaLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#1EBE5D] text-white text-xs font-black shadow-sm transition"
-                        title="Click to send real OTP directly to your teammate's phone on WhatsApp"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5 fill-white" />
-                        <span>Send on WhatsApp ↗</span>
-                      </a>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      maxLength={6}
-                      placeholder="6-digit code"
-                      value={custInputOtp}
-                      onChange={(e) => setCustInputOtp(e.target.value)}
-                      className="w-32 px-3 py-1.5 rounded-lg border border-emerald-300 text-xs font-mono font-bold text-center tracking-widest focus:outline-none bg-white"
-                    />
+                  {!custEmailVerified ? (
                     <button
                       type="button"
-                      onClick={() => handleVerifyCustOtp(custInputOtp, custForm.email)}
-                      className="px-3.5 py-1.5 rounded-lg bg-[#1B4D3E] text-white text-xs font-bold hover:bg-[#143c30] transition"
+                      onClick={handleSendCustEmailOtp}
+                      disabled={custEmailSending}
+                      className="px-4 py-2 rounded-xl bg-[#1B4D3E] hover:bg-[#143c30] text-white text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 shadow-sm"
                     >
-                      Verify Code
+                      {custEmailSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                      <span>Send OTP</span>
                     </button>
-                    {custEmailVerified && (
-                      <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Authenticated!
-                      </span>
-                    )}
-                  </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSendCustEmailOtp}
+                      className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition"
+                    >
+                      Change
+                    </button>
+                  )}
                 </div>
-              )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Mobile Number / फोन नंबर *
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={custForm.phone}
+                  onChange={(e) => setCustForm({ ...custForm, phone: e.target.value })}
+                  placeholder="+91 98221 00000"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-mono font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
@@ -834,7 +812,9 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
                   className="w-full py-3 rounded-2xl bg-[#1B4D3E] hover:bg-[#143c30] text-white text-xs font-black shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition"
                 >
                   <Check className="w-4 h-4" />
-                  <span>Register / Login Teammate as Citizen</span>
+                  <span>
+                    {custEmailVerified ? 'Save & Continue as Citizen' : 'Verify Email & Continue'}
+                  </span>
                 </button>
 
                 <button
@@ -848,17 +828,112 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
             </form>
           )}
 
-          {/* VIEW 3: WORKER REGISTRATION / LOGIN FORM WITH EMAIL AUTH */}
-          {mode === 'worker' && (
+          {/* VIEW 3A: WORKER EMAIL AUTHENTICATOR (STEP: OTP) */}
+          {mode === 'worker' && workStep === 'otp' && (
+            <div className="max-w-md mx-auto bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xl text-center space-y-5 animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-100 text-amber-800 flex items-center justify-center text-3xl shadow-sm ring-8 ring-amber-50">
+                <ShieldCheck className="w-9 h-9 text-amber-800" />
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[10px] font-black uppercase tracking-widest text-amber-900 bg-amber-100 px-3 py-1 rounded-full font-mono">
+                  Partner Security Passcode
+                </span>
+                <h3 className="text-2xl font-black text-slate-900 font-['Outfit'] pt-2">
+                  Check Partner Email
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
+                  We have sent an official 6-digit cooperative passcode to:
+                  <br />
+                  <span className="font-bold text-slate-900 font-mono text-sm">{workForm.email}</span>
+                </p>
+              </div>
+
+              {/* Status Notice */}
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-[11px] text-amber-950 flex items-center justify-between">
+                <span>
+                  {workRealEmailSent 
+                    ? '✉️ Security email sent to partner inbox!' 
+                    : `Passcode: ${workGeneratedOtp}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setWorkStep('form')}
+                  className="text-amber-800 font-bold hover:underline"
+                >
+                  Edit Email
+                </button>
+              </div>
+
+              {/* 6-Digit Code Input */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 block text-left">
+                  Enter 6-Digit Passcode (6 अंकों का कोड दर्ज करें)
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  autoFocus
+                  placeholder="• • • • • •"
+                  value={workInputOtp}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setWorkInputOtp(val);
+                    if (val.length === 6) {
+                      handleVerifyWorkOtp(val);
+                    }
+                  }}
+                  className="w-full text-center text-3xl font-mono font-black tracking-[12px] py-3.5 rounded-2xl border-2 border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/20 bg-amber-50/30 text-amber-950"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Passcode expires in 10 minutes. Check Spam if not in primary inbox.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => handleVerifyWorkOtp(workInputOtp)}
+                  className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Verify Passcode & Continue</span>
+                </button>
+
+                <div className="flex items-center justify-between text-xs pt-1 text-slate-500">
+                  <span>Didn't receive code?</span>
+                  {workTimer > 0 ? (
+                    <span className="font-mono font-bold text-slate-600">
+                      Resend in 00:{workTimer < 10 ? `0${workTimer}` : workTimer}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSendWorkEmailOtp}
+                      disabled={workEmailSending}
+                      className="font-bold text-amber-800 hover:underline flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Resend Passcode</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW 3B: WORKER REGISTRATION / PROFILE FORM (STEP: FORM) */}
+          {mode === 'worker' && workStep === 'form' && (
             <form onSubmit={handleWorkerSubmit} className="space-y-4 max-w-lg mx-auto bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center text-lg font-bold">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg font-bold">
                     🧰
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-900">Artisan Email & Partner ID</h4>
-                    <span className="text-[10px] text-slate-500 font-mono">Real teammate partner onboarding</span>
+                    <h4 className="text-sm font-bold text-slate-900">Partner Profile & Email</h4>
+                    <span className="text-[10px] text-slate-500 font-mono">Real teammate artisan account</span>
                   </div>
                 </div>
                 
@@ -869,7 +944,7 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
                   <button
                     type="button"
                     onClick={() => setCustomWorkerMemberId('COOP-MH-' + Math.floor(1000 + Math.random() * 9000))}
-                    className="p-1 text-slate-400 hover:text-amber-800 transition"
+                    className="p-1 text-slate-400 hover:text-amber-700 transition"
                     title="Generate New Member ID"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
@@ -879,19 +954,19 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Artisan Name / कारीगर साथी का नाम (Teammate) *
+                  Full Name / आपका नाम (या Teammate का नाम) *
                 </label>
                 <input
                   type="text"
                   required
                   value={workForm.name}
                   onChange={(e) => setWorkForm({ ...workForm, name: e.target.value })}
-                  placeholder="e.g. Ramesh Jadhav or Teammate Name"
+                  placeholder="e.g. Ramesh Jadhav or Partner Name"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
                 />
               </div>
 
-              {/* Email Authentication Block */}
+              {/* Email Authentication Row */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
@@ -900,7 +975,7 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
                   </label>
                   {workEmailVerified && (
                     <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified Email
                     </span>
                   )}
                 </div>
@@ -917,105 +992,41 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
                     placeholder="teammate.partner@coop.org"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
                   />
-                  <button
-                    type="button"
-                    onClick={handleSendWorkEmailOtp}
-                    disabled={workEmailSending}
-                    className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-300 whitespace-nowrap transition flex items-center gap-1"
-                  >
-                    {workEmailSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                    <span>Send Email OTP</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Worker Phone / WhatsApp OTP Block */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                    <Phone className="w-3.5 h-3.5 text-amber-700" />
-                    <span>Phone / मोबाइल नंबर (WhatsApp & SMS) *</span>
-                  </label>
-                  {workPhoneVerified && (
-                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="tel"
-                    required
-                    value={workForm.phone}
-                    onChange={(e) => {
-                      setWorkForm({ ...workForm, phone: e.target.value });
-                      setWorkPhoneVerified(false);
-                    }}
-                    placeholder="+91 98230 00000"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-mono font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSendWorkPhoneOtp}
-                    disabled={workPhoneSending}
-                    className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-300 whitespace-nowrap transition flex items-center gap-1.5 shadow-sm"
-                    title="Opens WhatsApp directly with teammate's phone to send the code"
-                  >
-                    {workPhoneSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5 text-amber-700 fill-amber-700" />}
-                    <span>Send via WhatsApp</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Active Verification Card for Worker */}
-              {(workEmailOtpSent || workPhoneOtpSent) && (
-                <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300 text-xs space-y-2.5 animate-in fade-in">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                    <span className="text-[11px] text-amber-950 font-bold">
-                      {workRealEmailSent 
-                        ? '✉️ Real email sent to partner inbox!' 
-                        : workPhoneOtpSent 
-                          ? '📲 Mobile OTP ready to send to partner!' 
-                          : 'Partner Verification OTP:'} (Code: <strong className="font-mono text-amber-900 text-sm">{workGeneratedOtp}</strong>)
-                    </span>
-                    {workPhoneWaLink && (
-                      <a
-                        href={workPhoneWaLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#1EBE5D] text-white text-xs font-black shadow-sm transition"
-                        title="Click to send real OTP directly to teammate's phone on WhatsApp"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5 fill-white" />
-                        <span>Send on WhatsApp ↗</span>
-                      </a>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      maxLength={6}
-                      placeholder="6-digit code"
-                      value={workInputOtp}
-                      onChange={(e) => setWorkInputOtp(e.target.value)}
-                      className="w-32 px-3 py-1.5 rounded-lg border border-amber-300 text-xs font-mono font-bold text-center tracking-widest focus:outline-none bg-white"
-                    />
+                  {!workEmailVerified ? (
                     <button
                       type="button"
-                      onClick={() => handleVerifyWorkOtp(workInputOtp, workForm.email)}
-                      className="px-3.5 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 transition"
+                      onClick={handleSendWorkEmailOtp}
+                      disabled={workEmailSending}
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black whitespace-nowrap transition flex items-center gap-1.5 shadow-sm"
                     >
-                      Verify Code
+                      {workEmailSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                      <span>Send OTP</span>
                     </button>
-                    {workEmailVerified && (
-                      <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Authenticated!
-                      </span>
-                    )}
-                  </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSendWorkEmailOtp}
+                      className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition"
+                    >
+                      Change
+                    </button>
+                  )}
                 </div>
-              )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Phone / मोबाइल नंबर *
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={workForm.phone}
+                  onChange={(e) => setWorkForm({ ...workForm, phone: e.target.value })}
+                  placeholder="+91 98230 00000"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-mono font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -1086,7 +1097,9 @@ export function RoleWelcomeModal({ isOpen, onClose, initialMode = 'select' }) {
                   className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition"
                 >
                   <Check className="w-4 h-4" />
-                  <span>Register Teammate & Enter Partner HUD</span>
+                  <span>
+                    {workEmailVerified ? 'Register Teammate & Enter HUD' : 'Verify Email & Enter HUD'}
+                  </span>
                 </button>
 
                 <button
