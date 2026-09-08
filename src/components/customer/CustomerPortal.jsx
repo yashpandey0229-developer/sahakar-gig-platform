@@ -157,11 +157,12 @@ export function CustomerPortal() {
               });
               setShowProfileModal(true);
             }}
-            className="p-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 hover:border-[#1B4D3E] transition flex items-center gap-1.5 shadow-sm text-xs font-bold"
-            title="Edit My Profile"
+            className="p-2 px-3 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100 transition flex items-center gap-1.5 shadow-sm text-xs font-bold"
+            title="View & Edit My Citizen ID / Profile"
           >
             <User className="w-3.5 h-3.5 text-[#1B4D3E]" />
-            <span className="hidden md:inline">{customer.name.split(' ')[0]}</span>
+            <span className="font-mono text-[11px] font-bold text-emerald-800">{customer.id || 'CIT-MH-501'}</span>
+            <span className="hidden md:inline font-sans text-slate-700">· {customer.name.split(' ')[0]}</span>
           </button>
         </div>
       </div>
@@ -253,10 +254,15 @@ export function CustomerPortal() {
           <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <h3 className="text-lg font-black text-slate-900 font-['Outfit']">
-                  Personalize Citizen Profile
-                </h3>
-                <p className="text-xs text-slate-500">Your name will appear live to the cooperative artisan</p>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black text-slate-900 font-['Outfit']">
+                    Citizen Identity & Profile
+                  </h3>
+                  <span className="text-[11px] font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">
+                    {customer.id || 'CIT-MH-501'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">Your Citizen ID is saved permanently across browser sessions</p>
               </div>
               <button
                 onClick={() => setShowProfileModal(false)}

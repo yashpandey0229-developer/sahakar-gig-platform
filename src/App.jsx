@@ -14,6 +14,7 @@ import { getTranslation } from './services/translations';
 export function App() {
   const { currentRole, setCurrentRole, language } = useAppState();
   const [isArchitectureOpen, setIsArchitectureOpen] = useState(false);
+  const [roleModalMode, setRoleModalMode] = useState('select');
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(() => {
     try {
       return !localStorage.getItem('sahakar_user_role');
@@ -21,6 +22,11 @@ export function App() {
       return false;
     }
   });
+
+  const handleOpenRoleModal = (mode = 'select') => {
+    setRoleModalMode(mode);
+    setIsRoleModalOpen(true);
+  };
 
   const t = getTranslation(language);
 
@@ -30,12 +36,13 @@ export function App() {
       {/* Global Navbar */}
       <Navbar
         onOpenArchitecture={() => setIsArchitectureOpen(true)}
-        onOpenRoleModal={() => setIsRoleModalOpen(true)}
+        onOpenRoleModal={handleOpenRoleModal}
       />
 
       {/* Role Selection & Onboarding Modal */}
       <RoleWelcomeModal
         isOpen={isRoleModalOpen}
+        initialMode={roleModalMode}
         onClose={() => setIsRoleModalOpen(false)}
       />
 

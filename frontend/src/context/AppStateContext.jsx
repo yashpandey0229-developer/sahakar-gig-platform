@@ -43,18 +43,54 @@ export function AppStateProvider({ children }) {
   });
 
   // Workers & Catalog Data
-  const [workers, setWorkers] = useState(INITIAL_WORKERS);
-  const [activeWorkerId, setActiveWorkerId] = useState('w-101'); // Ramesh Jadhav default
+  const [workers, setWorkers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sahakar_custom_workers');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const map = new Map(INITIAL_WORKERS.map(w => [w.id, w]));
+          parsed.forEach(w => map.set(w.id, w));
+          return Array.from(map.values());
+        }
+      }
+    } catch (e) {}
+    return INITIAL_WORKERS;
+  });
+
+  const [activeWorkerId, setActiveWorkerIdState] = useState(() => {
+    try {
+      return localStorage.getItem('sahakar_active_worker_id') || 'w-101';
+    } catch (e) {
+      return 'w-101';
+    }
+  });
+
+  const setActiveWorkerId = (id) => {
+    setActiveWorkerIdState(id);
+    try {
+      localStorage.setItem('sahakar_active_worker_id', id);
+    } catch (e) {}
+  };
+
   const [services] = useState(SERVICES_CATALOG);
 
   // Active Customer state (with Real GPS capability)
-  const [customer, setCustomer] = useState({
-    id: 'c-501',
-    name: 'Priya Sharma',
-    phone: '+91 98221 55601',
-    address: 'Flat 402, Rohan Heights, FC Road, Shivajinagar, Pune',
-    location: { lat: 18.5298, lng: 73.8472 },
-    isRealGps: false
+  const [customer, setCustomer] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sahakar_customer');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {}
+    return {
+      id: 'CIT-MH-501',
+      name: 'Priya Sharma',
+      phone: '+91 98221 55601',
+      address: 'Flat 402, Rohan Heights, FC Road, Shivajinagar, Pune',
+      location: { lat: 18.5298, lng: 73.8472 },
+      isRealGps: false
+    };
   });
 
   const [isLocating, setIsLocating] = useState(false);
@@ -338,19 +374,27 @@ export function AppStateProvider({ children }) {
 
   // Customer Profile Editor
   const updateCustomerProfile = (updates) => {
+    let savedProfile = null;
     setCustomer(prev => {
-      const next = { ...prev, ...updates };
+      const next = { 
+        ...prev, 
+        ...updates,
+        id: updates.id || prev.id || ('CIT-MH-' + Math.floor(1000 + Math.random() * 9000))
+      };
+      savedProfile = next;
       try {
         localStorage.setItem('sahakar_customer', JSON.stringify(next));
       } catch (e) {}
       return next;
     });
-    addNotification('Profile Saved', `Customer profile set for ${updates.name || customer.name}.`, 'info');
+    addNotification('Citizen Profile Saved', `Citizen ID active for ${updates.name || customer.name}.`, 'info');
+    return savedProfile;
   };
 
   // Worker Partner Registration
   const registerWorker = async (workerData) => {
     const id = workerData.id || ('w-' + Date.now());
+    const cooperativeMemberId = workerData.cooperativeMemberId || ('COOP-MH-' + Math.floor(1000 + Math.random() * 9000));
     const newWorker = {
       id,
       name: workerData.name || 'New Sahakari Partner',
@@ -358,13 +402,17 @@ export function AppStateProvider({ children }) {
       avatar: workerData.avatar || 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=150&auto=format&fit=crop&q=80',
       rating: 4.9,
       totalJobsCompleted: 0,
-      skills: workerData.skills || ['electrical', 'plumbing'],
+      skills: Array.isArray(workerData.skills) && workerData.skills.length > 0 
+        ? workerData.skills 
+        : [workerData.skill || 'electrical'],
       societyName: workerData.societyName || 'Pune Urban Multi-Trade Cooperative',
-      cooperativeMemberId: workerData.cooperativeMemberId || ('COOP-MH-' + Math.floor(1000 + Math.random() * 9000)),
+      cooperativeMemberId,
       bankAccountMasked: workerData.bankAccountMasked || '•••• 7712 (UPI Verified)',
       isOnline: true,
+      status: 'online',
       fairRotationScore: 98,
       location: workerData.location || { lat: 18.5298, lng: 73.8472 },
+      address: workerData.address || 'Pune Urban Sector',
       wallet: {
         grossEarnings: 0,
         availableBalance: 450,
@@ -374,7 +422,16 @@ export function AppStateProvider({ children }) {
       }
     };
 
-    setWorkers(prev => [newWorker, ...prev.filter(w => w.id !== id)]);
+    setWorkers(prev => {
+      const filtered = prev.filter(w => w.id !== id);
+      const updated = [newWorker, ...filtered];
+      try {
+        const customWorkers = updated.filter(w => !['w-101', 'w-102', 'w-103', 'w-104', 'w-105'].includes(w.id));
+        localStorage.setItem('sahakar_custom_workers', JSON.stringify(customWorkers));
+      } catch (e) {}
+      return updated;
+    });
+
     setActiveWorkerId(id);
 
     try {
@@ -384,8 +441,8 @@ export function AppStateProvider({ children }) {
     }
 
     addNotification(
-      'Partner Registered & Live on Radar',
-      `Welcome ${newWorker.name}! Your cooperative profile has been created and synced.`,
+      'Worker ID Created & Saved',
+      `Welcome ${newWorker.name}! Member ID: ${cooperativeMemberId} saved and active.`,
       'success'
     );
 

@@ -157,15 +157,23 @@ export function Navbar({ onOpenArchitecture, onOpenRoleModal }) {
             {/* Dedicated Role Badge */}
             <div className="hidden sm:flex items-center">
               {currentRole === 'customer' ? (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold font-mono">
-                  <span>🏠 Citizen</span>
+                <button
+                  onClick={() => onOpenRoleModal ? onOpenRoleModal('customer') : setCurrentRole('customer')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs font-bold font-mono transition cursor-pointer shadow-sm"
+                  title="Click to view/create Citizen ID"
+                >
+                  <span>🏠 Citizen: {customer.id || 'CIT-MH-501'}</span>
                   <span className="text-emerald-700 font-sans">({customer.name.split(' ')[0]})</span>
-                </div>
+                </button>
               ) : currentRole === 'worker' ? (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-bold font-mono">
-                  <span>🧰 Partner</span>
-                  <span className="text-amber-700 font-sans">({activeWorker.name.split(' ')[0]})</span>
-                </div>
+                <button
+                  onClick={() => onOpenRoleModal ? onOpenRoleModal('worker') : setCurrentRole('worker')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 text-xs font-bold font-mono transition cursor-pointer shadow-sm"
+                  title="Click to view/create Worker Member ID"
+                >
+                  <span>🧰 Partner: {activeWorker?.cooperativeMemberId || 'COOP-MH-4819'}</span>
+                  <span className="text-amber-700 font-sans">({activeWorker?.name.split(' ')[0]})</span>
+                </button>
               ) : (
                 <div className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-800 text-xs font-mono font-bold">
                   {currentRole.toUpperCase()}
@@ -175,7 +183,7 @@ export function Navbar({ onOpenArchitecture, onOpenRoleModal }) {
 
             {/* Quick Role Switcher Button */}
             <button
-              onClick={onOpenRoleModal}
+              onClick={() => onOpenRoleModal ? onOpenRoleModal('select') : null}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-[#16202C] text-xs font-bold transition shadow-sm"
               title="Switch between Citizen App and Worker Partner App"
             >
@@ -209,27 +217,35 @@ export function Navbar({ onOpenArchitecture, onOpenRoleModal }) {
                   </div>
                   
                   <button
-                    onClick={() => { setCurrentRole('customer'); setShowRoleDropdown(false); }}
+                    onClick={() => { 
+                      if (onOpenRoleModal) onOpenRoleModal('customer');
+                      else setCurrentRole('customer');
+                      setShowRoleDropdown(false); 
+                    }}
                     className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between ${
                       currentRole === 'customer' ? 'bg-[#FAF7F0] font-bold text-[#1B4D3E]' : 'hover:bg-[#FAF7F0] text-[#16202C]'
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-[#1B4D3E]" />
-                      <span>{t.citizenCustomer}</span>
+                      <span>{t.citizenCustomer} (ID & Login)</span>
                     </div>
                     {currentRole === 'customer' && <span className="text-xs">✓</span>}
                   </button>
 
                   <button
-                    onClick={() => { setCurrentRole('worker'); setShowRoleDropdown(false); }}
+                    onClick={() => { 
+                      if (onOpenRoleModal) onOpenRoleModal('worker');
+                      else setCurrentRole('worker');
+                      setShowRoleDropdown(false); 
+                    }}
                     className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between ${
                       currentRole === 'worker' ? 'bg-[#FAF7F0] font-bold text-amber-700' : 'hover:bg-[#FAF7F0] text-[#16202C]'
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       <HardHat className="w-4 h-4 text-amber-600" />
-                      <span>{t.workerPartner}</span>
+                      <span>{t.workerPartner} (ID & Login)</span>
                     </div>
                     {currentRole === 'worker' && <span className="text-xs">✓</span>}
                   </button>
