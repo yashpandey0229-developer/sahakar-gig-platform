@@ -22,7 +22,8 @@ import {
   Search,
   ThumbsUp,
   Percent,
-  SlidersHorizontal
+  SlidersHorizontal,
+  X
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 import { calculateInvoiceBreakdown } from '../../services/dividendLedger';
@@ -161,10 +162,66 @@ export function ServiceGrid({ onSelectService, onOpenPriceModal }) {
     }
   ];
 
+  const SERVICE_KEYWORDS = {
+    electrical: [
+      'electrician', 'electricna', 'electrcian', 'electrition', 'electrical', 'electric', 'elect',
+      'bijli', 'wire', 'wiring', 'switch', 'socket', 'plug', 'mcb', 'fuse', 'light', 'bulb', 'tube',
+      'fan', 'ceiling fan', 'geyser', 'water heater', 'inverter', 'short circuit', 'current', 'shock',
+      'इलेक्ट्रिशियन', 'इलेक्ट्रिकल', 'बिजली', 'वायरिंग', 'पंखा', 'गीजर', 'स्विच', 'शॉर्ट सर्किट'
+    ],
+    plumbing: [
+      'plumber', 'plumbing', 'plamber', 'pipe', 'leak', 'leakage', 'tap', 'nal', 'pani', 'water',
+      'drain', 'drainage', 'choke', 'toilet', 'flush', 'sink', 'basin', 'bathroom', 'shower', 'jet spray',
+      'motor', 'pump', 'water tank', 'tank', 'प्लंबर', 'प्लंबिंग', 'नल', 'पाइप', 'लीकेज', 'पानी', 'ड्रेनेज'
+    ],
+    'ac-repair': [
+      'ac', 'ac service', 'ac repair', 'air conditioner', 'cooling', 'cool', 'gas', 'gas refill',
+      'compressor', 'cooling coil', 'foam jet', 'filter', 'hawa', 'split ac', 'window ac',
+      'एसी', 'एयर कंडीशनर', 'कूलिंग', 'गैस', 'सर्विसिंग'
+    ],
+    'deep-cleaning': [
+      'clean', 'cleaning', 'safai', 'deep clean', 'sanitization', 'sanitize', 'house cleaning',
+      'home cleaning', 'kitchen cleaning', 'bathroom cleaning', 'floor', 'polish', 'sofa', 'carpet',
+      'pest', 'सफाई', 'क्लीनिंग', 'डीप क्लीन', 'स्वच्छता'
+    ],
+    carpentry: [
+      'carpenter', 'carpentry', 'wood', 'wooden', 'woodcraft', 'furniture', 'door', 'darwaja',
+      'lock', 'latch', 'hinge', 'kabbja', 'cabinet', 'modular', 'bed', 'sofa repair', 'table', 'chair',
+      'badhai', 'lakdi', 'बढ़ई', 'फर्नीचर', 'दरवाजा', 'लकड़ी', 'काष्ठशिल्प'
+    ],
+    appliances: [
+      'appliance', 'appliances', 'fridge', 'refrigerator', 'washing machine', 'machine', 'microwave',
+      'oven', 'cooler', 'tv', 'television', 'repairs', 'उपकरण', 'फ्रिज', 'वाशिंग मशीन'
+    ],
+    painting: [
+      'paint', 'painting', 'painter', 'color', 'colour', 'wall', 'primer', 'waterproofing', 'waterproof',
+      'damp', 'seepage', 'texture', 'distemper', 'putty', 'whitewash', 'पेंटिंग', 'रंग', 'पुट्टी', 'सीलन'
+    ],
+    care: [
+      'emergency', 'sos', 'urgent', 'help', 'rapid', 'blackout', 'burst', 'safety', 'night', '24/7',
+      'आपातकालीन', 'इमरजेंसी', 'मदद', 'सहायता'
+    ]
+  };
+
+  const isServiceMatchingQuery = (service, queryStr) => {
+    if (!queryStr) return true;
+    const q = queryStr.trim().toLowerCase();
+    if (!q) return true;
+    
+    if (service.title.toLowerCase().includes(q)) return true;
+    if (service.description.toLowerCase().includes(q)) return true;
+    if (service.id.toLowerCase().includes(q)) return true;
+    if (service.category.toLowerCase().includes(q)) return true;
+    if (service.workerTitle && service.workerTitle.toLowerCase().includes(q)) return true;
+    if (service.bullets && service.bullets.some(b => b.toLowerCase().includes(q))) return true;
+
+    const keywords = SERVICE_KEYWORDS[service.id] || [];
+    return keywords.some(k => k.includes(q) || q.includes(k));
+  };
+
   const filteredServices = sampleServices.filter(s => {
-    const matchesCat = selectedCategory === 'All' || s.category === selectedCategory;
-    const matchesSearch = s.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          s.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = isServiceMatchingQuery(s, searchQuery);
+    const matchesCat = searchQuery.trim() ? true : (selectedCategory === 'All' || s.category === selectedCategory);
     return matchesCat && matchesSearch;
   });
 
@@ -251,25 +308,177 @@ export function ServiceGrid({ onSelectService, onOpenPriceModal }) {
               </button>
             </div>
 
-            {/* Search Dock */}
-            <div className="pt-2 max-w-lg">
-              <div className="flex items-center rounded-2xl bg-slate-900/90 border border-slate-700/80 p-1.5 shadow-inner focus-within:border-emerald-400 transition">
+            {/* Search Dock with Instant Quick-Book Dropdown & Chips */}
+            <div className="pt-2 max-w-xl relative">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const el = document.getElementById('catalog-grid');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="flex items-center rounded-2xl bg-slate-900/90 border border-slate-700/80 p-1.5 shadow-inner focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-500/20 transition"
+              >
                 <Search className="w-4 h-4 text-slate-400 ml-3 shrink-0" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search electrician, plumber, AC service, carpenter..."
+                  placeholder={language === 'hi' ? "इलेक्ट्रीशियन, प्लंबर, एसी सर्विस, बढ़ई खोजें..." : "Search electrician, plumber, AC service, carpenter..."}
                   className="flex-1 px-3 py-2 text-xs sm:text-sm bg-transparent text-white placeholder-slate-400 focus:outline-none"
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="p-1 text-slate-400 hover:text-white mr-1"
+                    title="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
                 <button
-                  onClick={() => {
-                    const el = document.getElementById('catalog-grid');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl transition shadow-sm"
+                  type="submit"
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl transition shadow-sm flex items-center gap-1"
                 >
-                  Search
+                  <span>Search</span>
+                </button>
+              </form>
+
+              {/* Instant Quick-Search Booking Dropdown Popup */}
+              {searchQuery.trim().length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-3xl p-3 shadow-2xl border-2 border-emerald-500/30 text-slate-900 z-50 animate-in fade-in zoom-in-95 max-h-96 overflow-y-auto">
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
+                    <span className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Matching Services ({filteredServices.length} found)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="text-[11px] text-slate-400 hover:text-slate-700 font-bold"
+                    >
+                      Close ✕
+                    </button>
+                  </div>
+
+                  {filteredServices.length > 0 ? (
+                    <div className="divide-y divide-slate-100 py-1">
+                      {filteredServices.map((service) => {
+                        const rawServiceObj = services.find(s => s.id === service.id) || services[0];
+                        return (
+                          <div 
+                            key={service.id} 
+                            className="p-3 hover:bg-slate-50 rounded-2xl transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center shrink-0 border border-amber-200 shadow-sm">
+                                {renderIcon(service.iconType)}
+                              </div>
+                              <div className="min-w-0">
+                                <h4 className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                                  {service.title}
+                                </h4>
+                                <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                                  <span className="font-bold text-emerald-700 font-mono">₹{service.basePrice} starting</span>
+                                  <span>•</span>
+                                  <span className="text-slate-600 font-medium">{service.workerTitle}</span>
+                                  <span>•</span>
+                                  <span className="text-emerald-700 font-bold">88% to artisan</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onSelectService(rawServiceObj);
+                                  setSearchQuery('');
+                                }}
+                                className="px-4 py-2 rounded-xl bg-[#1B4D3E] hover:bg-[#143a2f] text-white text-xs font-black shadow-md flex items-center gap-1.5 transition"
+                              >
+                                <Zap className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                <span>Book Service</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center space-y-2">
+                      <p className="text-xs text-slate-500">
+                        No direct match found for "<span className="font-bold text-slate-800">{searchQuery}</span>".
+                      </p>
+                      <div className="text-[11px] font-bold text-slate-600">Quick Book Popular Services:</div>
+                      <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const elect = services.find(s => s.id === 'electrical') || services[0];
+                            onSelectService(elect);
+                            setSearchQuery('');
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold transition flex items-center gap-1"
+                        >
+                          <span>⚡ Book Electrician</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const plumb = services.find(s => s.id === 'plumbing') || services[0];
+                            onSelectService(plumb);
+                            setSearchQuery('');
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-900 text-xs font-bold transition flex items-center gap-1"
+                        >
+                          <span>💧 Book Plumber</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Quick Search Chips below Search Dock */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-3">
+                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide mr-1">
+                  Popular:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('electrician')}
+                  className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-slate-200 text-[11px] font-bold transition flex items-center gap-1"
+                >
+                  <span>⚡ Electrician</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('plumber')}
+                  className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-slate-200 text-[11px] font-bold transition flex items-center gap-1"
+                >
+                  <span>💧 Plumber</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('ac')}
+                  className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-slate-200 text-[11px] font-bold transition flex items-center gap-1"
+                >
+                  <span>❄️ AC Repair</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('cleaning')}
+                  className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-slate-200 text-[11px] font-bold transition flex items-center gap-1"
+                >
+                  <span>🧹 Cleaning</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('carpenter')}
+                  className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-slate-200 text-[11px] font-bold transition flex items-center gap-1"
+                >
+                  <span>🪚 Carpenter</span>
                 </button>
               </div>
             </div>
@@ -419,11 +628,68 @@ export function ServiceGrid({ onSelectService, onOpenPriceModal }) {
           ))}
         </div>
 
-        {/* 8 Modern Service Cards with Realistic Photos */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {filteredServices.map((service) => {
-            const rawServiceObj = services.find(s => s.id === service.id) || services[0];
-            return (
+        {/* Active Search Filter Banner */}
+        {searchQuery.trim() && (
+          <div className="p-3.5 px-5 rounded-2xl bg-amber-50 border-2 border-amber-300 flex items-center justify-between text-xs animate-in fade-in shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-base">🔎</span>
+              <span className="font-bold text-slate-900">
+                Found <span className="text-amber-800 font-mono font-black">{filteredServices.length}</span> service{filteredServices.length !== 1 ? 's' : ''} matching "{searchQuery}"
+              </span>
+            </div>
+            <button
+              onClick={() => setSearchQuery('')}
+              className="text-xs font-bold text-amber-900 hover:text-amber-950 underline flex items-center gap-1"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Clear Search / Show All</span>
+            </button>
+          </div>
+        )}
+
+        {filteredServices.length === 0 ? (
+          <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 space-y-4 shadow-sm">
+            <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto text-2xl">
+              🔍
+            </div>
+            <h3 className="text-lg font-black text-slate-900">
+              No services found for "{searchQuery}"
+            </h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto">
+              We couldn't find an exact match. You can clear your search or book one of our most requested cooperative services below:
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => setSearchQuery('')}
+                className="px-5 py-2.5 rounded-2xl bg-slate-900 text-white text-xs font-black hover:bg-slate-800 transition"
+              >
+                Show All Services
+              </button>
+              <button
+                onClick={() => {
+                  const elect = services.find(s => s.id === 'electrical') || services[0];
+                  onSelectService(elect);
+                }}
+                className="px-5 py-2.5 rounded-2xl bg-amber-400 text-slate-950 text-xs font-black hover:bg-amber-300 transition"
+              >
+                ⚡ Book Electrician
+              </button>
+              <button
+                onClick={() => {
+                  const plumb = services.find(s => s.id === 'plumbing') || services[0];
+                  onSelectService(plumb);
+                }}
+                className="px-5 py-2.5 rounded-2xl bg-[#1B4D3E] text-white text-xs font-black hover:bg-[#143a2f] transition"
+              >
+                💧 Book Plumber
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {filteredServices.map((service) => {
+              const rawServiceObj = services.find(s => s.id === service.id) || services[0];
+              return (
               <div
                 key={service.id}
                 className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl hover:border-[#1B4D3E] transition-all duration-300 flex flex-col justify-between group"
@@ -513,6 +779,7 @@ export function ServiceGrid({ onSelectService, onOpenPriceModal }) {
             );
           })}
         </div>
+      )}
 
       </section>
 
