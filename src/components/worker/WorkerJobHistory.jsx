@@ -18,7 +18,7 @@ import { useAppState } from '../../context/AppStateContext';
 import { CooperativeReceiptModal } from '../common/CooperativeReceiptModal';
 
 export function WorkerJobHistory({ onOpenJobExecution }) {
-  const { bookings, activeWorker, language } = useAppState();
+  const { bookings, activeWorker, language, submitReview } = useAppState();
   const [selectedBookingForReceipt, setSelectedBookingForReceipt] = useState(null);
 
   // Strict Worker Isolation: Only show jobs completed by THIS logged-in worker
@@ -193,34 +193,73 @@ export function WorkerJobHistory({ onOpenJobExecution }) {
                         </span>
                       </div>
 
-                      <p className="text-xs text-slate-700 italic bg-white/90 p-2 rounded-xl border border-amber-200/70 font-medium leading-relaxed">
-                        "{booking.reviewText || (
-                          ratingScore === 5 ? 'Outstanding doorstep service and transparent cooperative billing.' :
-                          ratingScore === 4 ? 'Very good doorstep work and timely arrival.' :
-                          ratingScore === 3 ? 'Satisfactory service completion at customer premises.' :
-                          ratingScore === 2 ? 'Service completed with feedback for improvement.' :
-                          'Service completed.'
-                        )}"
-                      </p>
+                      <div className="flex items-center justify-between pt-1 border-t border-amber-200/70 text-[11px]">
+                        <span className="text-emerald-800 font-bold">Verified on worker profile</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-slate-500 font-medium">Test:</span>
+                          <button
+                            type="button"
+                            onClick={() => submitReview(booking.id, 3, 'Satisfactory doorstep service completion.')}
+                            className={`px-2 py-0.5 rounded-md font-bold text-[10px] transition ${
+                              ratingScore === 3 ? 'bg-amber-600 text-white' : 'bg-white border border-amber-300 text-amber-900 hover:bg-amber-50'
+                            }`}
+                          >
+                            3★
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => submitReview(booking.id, 5, 'Outstanding doorstep service and transparent cooperative billing.')}
+                            className={`px-2 py-0.5 rounded-md font-bold text-[10px] transition ${
+                              ratingScore === 5 ? 'bg-amber-600 text-white' : 'bg-white border border-amber-300 text-amber-900 hover:bg-amber-50'
+                            }`}
+                          >
+                            5★
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    <div className="mt-4 p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+                    <div className="mt-4 p-3 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                          <Clock className="w-3.5 h-3.5 text-amber-500" />
-                          <span className="text-xs font-bold text-slate-700">Citizen Doorstep Rating</span>
+                        <div className="flex items-center gap-1.5 text-amber-950 font-bold text-xs">
+                          <Clock className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Record Citizen Rating (रेटिंग दर्ज करें):</span>
                         </div>
-                        <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200">
-                          ⏳ Awaiting Rating
+                        <span className="text-[10px] font-bold bg-amber-200 text-amber-950 px-2 py-0.5 rounded-full border border-amber-300">
+                          1-Click Stamp
                         </span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <Star key={s} className="w-3.5 h-3.5 text-slate-200 fill-slate-100" />
+
+                      <div className="grid grid-cols-5 gap-1.5 pt-0.5">
+                        {[1, 2, 3, 4, 5].map((stars) => (
+                          <button
+                            key={stars}
+                            type="button"
+                            onClick={() => {
+                              submitReview(
+                                booking.id,
+                                stars,
+                                stars === 5 ? 'Outstanding doorstep service and transparent cooperative billing.' :
+                                stars === 4 ? 'Very good doorstep work and timely arrival.' :
+                                stars === 3 ? 'Satisfactory service completion at customer premises.' :
+                                stars === 2 ? 'Service completed with feedback for improvement.' :
+                                'Service completed.'
+                              );
+                            }}
+                            className={`py-1.5 px-1 rounded-xl text-xs font-black flex items-center justify-center gap-1 transition shadow-xs border ${
+                              stars === 3
+                                ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-sm ring-2 ring-amber-300'
+                                : 'bg-white hover:bg-amber-100 text-slate-800 border-amber-300 hover:border-amber-400'
+                            }`}
+                          >
+                            <Star className={`w-3 h-3 ${stars === 3 ? 'fill-white text-white' : 'fill-amber-400 text-amber-500'}`} />
+                            <span>{stars}★</span>
+                          </button>
                         ))}
-                        <span className="text-[11px] text-slate-400 font-medium ml-1">
-                          Awaiting citizen review on customer app
-                        </span>
+                      </div>
+
+                      <div className="text-[10px] text-slate-500 text-center font-medium">
+                        Click 3★ to test 3-star rating, or 5★ for full rating
                       </div>
                     </div>
                   )}

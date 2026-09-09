@@ -36,7 +36,8 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
     updateBookingStatus, 
     updateBooking,
     activeWorker, 
-    setCurrentRole 
+    setCurrentRole,
+    submitReview 
   } = useAppState();
 
   const [lastCompletedBookingId, setLastCompletedBookingId] = useState(null);
@@ -505,19 +506,84 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
                       </p>
                     )}
 
-                    <div className="flex items-center gap-1.5 text-[11px] text-emerald-800 font-bold pt-1 border-t border-amber-200/70">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Credited live to your cooperative profile & rotation score ({currentJob.ratingGiven}★ verified)</span>
+                    <div className="flex items-center justify-between pt-1 border-t border-amber-200/70 text-[11px]">
+                      <span className="text-emerald-800 font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Credited live to your profile ({currentJob.ratingGiven}★ verified)</span>
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-slate-500 font-medium">Test:</span>
+                        <button
+                          type="button"
+                          onClick={() => submitReview(currentJob.id, 3, 'Satisfactory service completion at customer doorstep.')}
+                          className={`px-2 py-0.5 rounded-md font-bold text-[10px] transition ${
+                            currentJob.ratingGiven === 3 ? 'bg-amber-600 text-white' : 'bg-white border border-amber-300 text-amber-900 hover:bg-amber-50'
+                          }`}
+                        >
+                          3★
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => submitReview(currentJob.id, 5, 'Outstanding doorstep service and transparent cooperative billing.')}
+                          className={`px-2 py-0.5 rounded-md font-bold text-[10px] transition ${
+                            currentJob.ratingGiven === 5 ? 'bg-amber-600 text-white' : 'bg-white border border-amber-300 text-amber-900 hover:bg-amber-50'
+                          }`}
+                        >
+                          5★
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-1.5 py-1">
-                    <p className="text-xs text-slate-600 font-medium">
-                      Doorstep service completed! When the citizen submits their 1-5 star review on their phone, it will appear here in real-time.
-                    </p>
-                    <div className="flex items-center gap-2 text-[11px] text-amber-700 font-medium">
-                      <Clock className="w-3.5 h-3.5 animate-spin text-amber-600" />
-                      <span>Live sync listening for customer rating...</span>
+                  <div className="space-y-2.5 py-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-700">Citizen Doorstep Rating:</span>
+                      <span className="text-[10px] bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded-full border border-amber-200">
+                        ⚡ Direct Input / Live Sync
+                      </span>
+                    </div>
+
+                    {/* Interactive 1-click Doorstep Citizen Rating Selector */}
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
+                      <span className="text-[11px] text-amber-950 font-bold block">
+                        Record customer rating given at doorstep (ग्राहक द्वारा दी गई रेटिंग दर्ज करें):
+                      </span>
+
+                      <div className="grid grid-cols-5 gap-1.5">
+                        {[1, 2, 3, 4, 5].map((stars) => (
+                          <button
+                            key={stars}
+                            type="button"
+                            onClick={() => {
+                              submitReview(
+                                currentJob.id, 
+                                stars, 
+                                stars === 5 ? 'Outstanding doorstep service and transparent cooperative billing.' :
+                                stars === 4 ? 'Very good doorstep execution and timely arrival.' :
+                                stars === 3 ? 'Satisfactory service completion at customer premises.' :
+                                stars === 2 ? 'Service completed with feedback for improvement.' :
+                                'Service completed.'
+                              );
+                            }}
+                            className={`py-2 px-1 rounded-xl text-xs font-black flex items-center justify-center gap-1 transition shadow-xs border ${
+                              stars === 3
+                                ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-sm ring-2 ring-amber-300'
+                                : 'bg-white hover:bg-amber-100 text-slate-800 border-amber-300 hover:border-amber-400'
+                            }`}
+                            title={`Record ${stars} Star Rating`}
+                          >
+                            <Star className={`w-3.5 h-3.5 ${stars === 3 ? 'fill-white text-white' : 'fill-amber-400 text-amber-500'}`} />
+                            <span>{stars}★</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-amber-600 animate-spin" />
+                          <span>Waiting for customer app or click 3★ / 5★ above</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}

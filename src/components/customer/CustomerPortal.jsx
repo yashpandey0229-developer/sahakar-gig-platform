@@ -207,6 +207,31 @@ export function CustomerPortal() {
         </div>
       )}
 
+      {/* Floating Completed Order - Rate Artisan Prompt Banner */}
+      {activeBooking && activeBooking.status === 'COMPLETED' && !activeBooking.ratingGiven && (
+        <div 
+          onClick={() => setReviewBooking(activeBooking)}
+          className="cursor-pointer bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white rounded-2xl p-4 px-6 shadow-xl flex items-center justify-between gap-4 animate-in slide-in-from-top-2 hover:scale-[1.01] transition border-2 border-amber-300"
+        >
+          <div className="flex items-center gap-3">
+            <span className="w-3 h-3 rounded-full bg-white animate-ping" />
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-100 font-bold block">
+                🎉 SERVICE COMPLETED · AWAITING YOUR RATING
+              </span>
+              <h4 className="text-sm font-black text-white">
+                {activeBooking.subServiceName || activeBooking.serviceTitle} · Expert: {activeBooking.workerName || 'Cooperative Artisan'}
+              </h4>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 font-black text-xs bg-white text-amber-950 px-4 py-2 rounded-xl shadow-sm">
+            <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+            <span>Rate Worker (1-5★) &rarr;</span>
+          </div>
+        </div>
+      )}
+
       {/* Active Tab Content */}
       {activeTab === 'services' && (
         <ServiceGrid
