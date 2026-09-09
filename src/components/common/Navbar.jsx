@@ -44,19 +44,26 @@ export function Navbar({ onOpenArchitecture, onOpenRoleModal }) {
   return (
     <header className="sticky top-0 z-40 w-full bg-[#FAF7F0] border-b border-[#EBE5D8]">
       
-      {/* Top Heritage Navy Bar */}
-      <div className="bg-[#111C26] text-[#E2E8F0] text-[11px] px-4 sm:px-8 py-2 flex items-center justify-between font-mono tracking-tight">
-        <div className="flex items-center gap-2 sm:gap-3">
+      {/* Top Heritage Navy Bar with Direct Ministry Oversight Link */}
+      <div className="bg-[#111C26] text-[#E2E8F0] text-[11px] px-3 sm:px-8 py-2 flex items-center justify-between font-mono tracking-tight overflow-hidden">
+        <button
+          onClick={() => setCurrentRole('ministry')}
+          className="flex items-center gap-2 sm:gap-3 hover:opacity-90 transition text-left cursor-pointer group"
+          title="Click to view Ministry of Cooperation National Dashboard"
+        >
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
-          <span className="font-bold text-white">{t.topBarLeft}</span>
-          <span className="text-slate-400 hidden lg:inline">| {t.topBarRegd}</span>
-        </div>
-        <div className="flex items-center gap-4 text-slate-300">
+          <span className="font-bold text-white group-hover:text-amber-300 transition">🏛️ {t.topBarLeft}</span>
+          <span className="text-slate-400 hidden sm:inline">| {t.topBarRegd}</span>
+          <span className="text-[10px] bg-amber-400/20 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full font-bold">
+            National Oversight &rarr;
+          </span>
+        </button>
+        <div className="flex items-center gap-2 sm:gap-4 text-slate-300 shrink-0">
           <a href="mailto:support@sahakar.gov.in" className="hover:text-white transition hidden md:inline">
             ✉️ support@sahakar.gov.in
           </a>
-          <a href="tel:18002007242" className="text-amber-300 font-bold hover:underline flex items-center gap-1">
-            📞 1800-200-SAHAKAR (24/7 Toll-Free)
+          <a href="tel:18002007242" className="text-amber-300 font-bold hover:underline flex items-center gap-1 text-[11px]">
+            <span>📞 1800-200-SAHAKAR</span>
           </a>
         </div>
       </div>
@@ -197,6 +204,21 @@ export function Navbar({ onOpenArchitecture, onOpenRoleModal }) {
             >
               <ArrowRightLeft className="w-3.5 h-3.5 text-slate-600" />
               <span className="hidden md:inline">Switch Role</span>
+            </button>
+
+            {/* Direct Ministry of Cooperation Tab Button */}
+            <button
+              onClick={() => setCurrentRole(currentRole === 'ministry' ? 'customer' : 'ministry')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-sm ${
+                currentRole === 'ministry'
+                  ? 'bg-amber-400 text-slate-950 border-amber-500 font-black ring-2 ring-amber-300'
+                  : 'bg-slate-900 text-amber-300 border-slate-800 hover:bg-slate-800'
+              }`}
+              title="Toggle Ministry of Cooperation National Dashboard"
+            >
+              <span>🏛️</span>
+              <span className="hidden md:inline">Ministry of Cooperation</span>
+              <span className="md:hidden">Ministry</span>
             </button>
 
             {/* Language Toggle Button */}

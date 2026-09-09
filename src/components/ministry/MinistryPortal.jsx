@@ -17,7 +17,7 @@ import {
 import { useAppState } from '../../context/AppStateContext';
 
 export function MinistryPortal() {
-  const { ministryStats = {}, welfareMetrics = {}, workers = [] } = useAppState();
+  const { ministryStats = {}, welfareMetrics = {}, workers = [], setCurrentRole } = useAppState();
 
   const registeredCoops = ministryStats?.registeredCooperatives 
     ?? ministryStats?.totalRegisteredGigCooperatives 
@@ -96,13 +96,31 @@ export function MinistryPortal() {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {setCurrentRole && (
+            <>
+              <button
+                onClick={() => setCurrentRole('customer')}
+                className="px-4 py-2.5 rounded-2xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                title="Return to Citizen Portal"
+              >
+                <span>🏠 Citizen Portal</span>
+              </button>
+              <button
+                onClick={() => setCurrentRole('worker')}
+                className="px-4 py-2.5 rounded-2xl bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-950 text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                title="Return to Worker Partner Portal"
+              >
+                <span>🧰 Worker App</span>
+              </button>
+            </>
+          )}
           <button
             onClick={handleExportAudit}
-            className="px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black shadow-lg shadow-blue-600/25 flex items-center gap-2 transition"
+            className="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black shadow-md shadow-blue-600/25 flex items-center gap-2 transition"
           >
             <Download className="w-4 h-4" />
-            <span>Export Ministry Audit Dossier</span>
+            <span>Export Dossier (CSV)</span>
           </button>
         </div>
       </div>
