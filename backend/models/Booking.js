@@ -46,7 +46,8 @@ const bookingSchema = new mongoose.Schema({
   problemPhoto: { type: String },
   completionPhoto: { type: String },
   ratingGiven: { type: Number },
-  reviewText: { type: String }
+  reviewText: { type: String },
+  quotes: [{ type: mongoose.Schema.Types.Mixed }]
 }, { timestamps: true });
 
 export default mongoose.model('Booking', bookingSchema);

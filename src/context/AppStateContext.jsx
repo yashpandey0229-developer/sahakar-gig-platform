@@ -547,8 +547,14 @@ export function AppStateProvider({ children }) {
     addNotification('Coop Wallet Updated', 'Funds transferred to verified UPI account.', 'success');
   };
 
-  // Worker Accepts Gig
-  const acceptJobByWorker = (bookingId, workerObj = activeWorker) => {
+  // Worker Accepts Gig (Supports base rate or custom quoted amount)
+  const acceptJobByWorker = (bookingId, workerObj = activeWorker, customAmount = null) => {
+    const booking = bookings.find(b => b.id === bookingId);
+    const finalAmount = customAmount ? Number(customAmount) : (booking?.totalAmount || 499);
+    const workerPayout = Math.round(finalAmount * 0.88);
+    const welfareShare = Math.round(finalAmount * 0.07);
+    const platformShare = Math.round(finalAmount * 0.05);
+
     const updates = {
       workerId: workerObj.id,
       workerName: workerObj.name,
@@ -558,6 +564,15 @@ export function AppStateProvider({ children }) {
       workerRating: workerObj.rating,
       workerSociety: workerObj.societyName,
       workerLocation: { ...workerObj.location },
+      totalAmount: finalAmount,
+      breakdown: {
+        workerPayout,
+        welfareFundContribution: welfareShare,
+        platformMaintenance: platformShare,
+        workerPercent: 88,
+        welfarePercent: 7,
+        platformPercent: 5
+      },
       status: 'ACCEPTED',
       etaMins: 10
     };
@@ -570,12 +585,121 @@ export function AppStateProvider({ children }) {
 
     addNotification(
       'Gig Accepted!',
-      `You accepted gig #${bookingId}. Customer notified.`,
+      `You accepted gig #${bookingId} at ₹${finalAmount}. Customer notified.`,
       'match'
     );
 
     speechService.speak(
       `कार्य स्वीकार किया गया! ग्राहक ${workerObj.name} की प्रतीक्षा कर रहे हैं।`,
+      'hi'
+    );
+  };
+
+  // Worker Submits a Custom Quote / Bid for a Broadcasted Gig
+  const submitWorkerQuote = (bookingId, workerObj = activeWorker, quoteAmount, quoteNotes = '') => {
+    const amount = Number(quoteAmount);
+    if (!amount || amount <= 0) return;
+
+    const workerLoc = workerObj.location || { lat: 18.5298, lng: 73.8472 };
+    const targetBooking = bookings.find(b => b.id === bookingId);
+    const custLoc = targetBooking?.customerLocation || customer?.location || { lat: 18.5298, lng: 73.8472 };
+    const distance = calculateDistanceKm(custLoc.lat, custLoc.lng, workerLoc.lat, workerLoc.lng);
+
+    // Dynamic optimization score calculation for this quote:
+    // Nearest (40%) + Best Rating (35%) + Less Cost (25%)
+    const proxScore = Math.max(10, Math.min(100, Math.round(((15 - distance) / 15) * 100)));
+    const ratingScore = Math.max(20, Math.min(100, Math.round(((workerObj.rating || 4.8) / 5) * 100)));
+    const costScore = Math.max(20, Math.min(100, Math.round(100 - (amount / 600) * 50)));
+    const optimizationScore = Math.round(proxScore * 0.40 + ratingScore * 0.35 + costScore * 0.25);
+
+    const newQuote = {
+      id: 'q-' + Date.now(),
+      workerId: workerObj.id,
+      workerName: workerObj.name,
+      workerAvatar: workerObj.avatar,
+      workerPhone: workerObj.phone,
+      workerRating: workerObj.rating,
+      workerSociety: workerObj.societyName,
+      workerLocation: workerLoc,
+      distanceKm: distance,
+      quotedAmount: amount,
+      workerPayout: Math.round(amount * 0.88),
+      welfareShare: Math.round(amount * 0.07),
+      platformFee: Math.round(amount * 0.05),
+      quoteNotes: quoteNotes.trim() || 'Ready with required tools to deliver immediate service.',
+      optimizationScore,
+      submittedAt: new Date().toISOString()
+    };
+
+    let updatedQuotes = [];
+    setBookings(prev =>
+      prev.map(b => {
+        if (b.id === bookingId) {
+          const existing = b.quotes || [];
+          const filtered = existing.filter(q => q.workerId !== workerObj.id);
+          updatedQuotes = [...filtered, newQuote].sort((a, b) => b.optimizationScore - a.optimizationScore);
+          return {
+            ...b,
+            quotes: updatedQuotes
+          };
+        }
+        return b;
+      })
+    );
+
+    api.updateBooking(bookingId, { quotes: updatedQuotes }).catch(console.warn);
+
+    addNotification(
+      'Custom Quote Submitted',
+      `Quoted ₹${amount} for Gig #${bookingId}. Dynamic Match Rank: ${optimizationScore}%.`,
+      'success'
+    );
+
+    speechService.speak(
+      `आपकी ₹${amount} की बोली दर्ज हो गई है। ग्राहक को विकल्प भेजा गया है।`,
+      'hi'
+    );
+  };
+
+  // Customer or Platform Accepts an Artisan's Quote
+  const acceptWorkerQuote = (bookingId, quote) => {
+    const updates = {
+      workerId: quote.workerId,
+      workerName: quote.workerName,
+      workerPhone: quote.workerPhone,
+      workerAvatar: quote.workerAvatar,
+      workerRating: quote.workerRating,
+      workerSociety: quote.workerSociety,
+      workerLocation: { ...quote.workerLocation },
+      totalAmount: quote.quotedAmount,
+      breakdown: {
+        workerPayout: quote.workerPayout,
+        welfareFundContribution: quote.welfareShare,
+        platformMaintenance: quote.platformFee,
+        workerPercent: 88,
+        welfarePercent: 7,
+        platformPercent: 5
+      },
+      optimizationScore: quote.optimizationScore,
+      status: 'ACCEPTED',
+      acceptedQuote: quote,
+      etaMins: Math.max(6, Math.round(quote.distanceKm * 3.2 + 3))
+    };
+
+    setBookings(prev =>
+      prev.map(b => (b.id === bookingId ? { ...b, ...updates } : b))
+    );
+    setActiveBookingId(bookingId);
+    api.updateBooking(bookingId, updates).catch(console.warn);
+
+    addNotification(
+      'Artisan Quote Accepted!',
+      `${quote.workerName} assigned at ₹${quote.quotedAmount} (${quote.optimizationScore}% match).`,
+      'match'
+    );
+
+    speechService.speak(
+      `कारीगर ${quote.workerName} का कोटेशन ₹${quote.quotedAmount} स्वीकार किया गया।`,
       'hi'
     );
   };
@@ -606,6 +730,7 @@ export function AppStateProvider({ children }) {
       totalAmount: amount,
       breakdown,
       status: 'BROADCASTING',
+      quotes: [],
       startOtp,
       endOtp,
       createdAt: new Date().toISOString(),
@@ -625,17 +750,21 @@ export function AppStateProvider({ children }) {
       'broadcast'
     );
 
-    // Allow 15 seconds for a connected real worker (Friend B) to accept the incoming gig.
-    // If no real worker accepts within 15 seconds, fallback to auto-assign candidate for single-player demo.
+    // Allow 25 seconds for connected workers to submit quotes or accept.
+    // If quotes exist, auto-select the best quote based on Dynamic Optimization!
     setTimeout(() => {
       setBookings(current => {
         const target = current.find(b => b.id === bookingId);
         if (target && target.status === 'BROADCASTING') {
-          autoAssignWorker(bookingId, service.id, target.customerLocation);
+          if (target.quotes && target.quotes.length > 0) {
+            acceptWorkerQuote(bookingId, target.quotes[0]);
+          } else {
+            autoAssignWorker(bookingId, service.id, target.customerLocation);
+          }
         }
         return current;
       });
-    }, 15000);
+    }, 25000);
 
     return bookingId;
   };
@@ -1026,6 +1155,8 @@ export function AppStateProvider({ children }) {
         createBooking,
         updateBooking,
         acceptJobByWorker,
+        submitWorkerQuote,
+        acceptWorkerQuote,
         updateBookingStatus,
         submitReview,
         proposals,

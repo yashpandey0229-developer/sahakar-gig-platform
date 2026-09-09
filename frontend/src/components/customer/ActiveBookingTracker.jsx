@@ -32,7 +32,7 @@ import { HelpSupportModal } from '../common/HelpSupportModal';
 import { speechService } from '../../services/speechService';
 
 export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
-  const { updateBookingStatus, setCurrentRole, addNotification } = useAppState();
+  const { updateBookingStatus, setCurrentRole, addNotification, acceptWorkerQuote } = useAppState();
   const [copiedOtp, setCopiedOtp] = useState(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -278,14 +278,103 @@ export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
               </div>
             </div>
           ) : (
-            <div className="p-6 rounded-3xl bg-slate-50 border border-slate-200 text-center space-y-3">
-              <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 mx-auto flex items-center justify-center animate-pulse">
-                <Radio className="w-6 h-6" />
-              </div>
-              <h4 className="text-sm font-bold text-slate-900">Scanning Cooperative Radar...</h4>
-              <p className="text-xs text-slate-500">
-                Pinging qualified artisans in your neighborhood.
-              </p>
+            <div className="space-y-4">
+              {/* Incoming Artisan Quotes & Bids Section */}
+              {booking.quotes && booking.quotes.length > 0 ? (
+                <div className="p-5 rounded-3xl bg-gradient-to-br from-amber-500/10 via-white to-amber-500/5 border-2 border-amber-400/60 shadow-lg space-y-3 animate-in zoom-in-95">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+                      <h4 className="text-sm font-black text-slate-900 font-['Outfit']">
+                        Artisan Quotes Received ({booking.quotes.length})
+                      </h4>
+                    </div>
+                    <span className="text-[10px] bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full font-black border border-amber-300 uppercase">
+                      Dynamic Ranking
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 font-medium">
+                    Multiple cooperative artisans have quoted for your service. Review and select your preferred artisan below:
+                  </p>
+
+                  <div className="space-y-2.5 pt-1">
+                    {booking.quotes.map((quote, qIdx) => {
+                      const isTopRanked = qIdx === 0;
+                      return (
+                        <div
+                          key={quote.id || quote.workerId}
+                          className={`p-3.5 rounded-2xl border transition-all ${
+                            isTopRanked
+                              ? 'bg-amber-50/70 border-amber-300 ring-2 ring-amber-400/30 shadow-md'
+                              : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
+                          }`}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={quote.workerAvatar || 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=150'}
+                                alt={quote.workerName}
+                                className="w-11 h-11 rounded-xl object-cover border border-slate-200 shadow-sm"
+                              />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h5 className="text-sm font-black text-slate-900">{quote.workerName}</h5>
+                                  <span className="flex items-center gap-0.5 text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">
+                                    <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                                    {quote.workerRating || '4.9'}
+                                  </span>
+                                  {isTopRanked && (
+                                    <span className="text-[9px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-black">
+                                      🏆 #1 Optimal Match
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                                  <span>📍 {Number(quote.distanceKm).toFixed(1)} km away</span>
+                                  <span>•</span>
+                                  <span className="text-emerald-700 font-bold font-mono">{quote.optimizationScore}% Optimal</span>
+                                </div>
+                                {quote.quoteNotes && (
+                                  <p className="text-[11px] text-slate-600 italic mt-1 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                                    "{quote.quoteNotes}"
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
+                              <div>
+                                <span className="text-[10px] text-slate-500 font-bold block sm:text-right">Quoted Price:</span>
+                                <div className="text-xl font-black text-slate-900 font-mono sm:text-right">
+                                  ₹{quote.quotedAmount}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => acceptWorkerQuote(booking.id, quote)}
+                                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md transition flex items-center gap-1.5 whitespace-nowrap"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Accept Quote</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-6 rounded-3xl bg-slate-50 border border-slate-200 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 mx-auto flex items-center justify-center animate-pulse">
+                    <Radio className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900">Scanning Cooperative Radar...</h4>
+                  <p className="text-xs text-slate-500">
+                    Pinging qualified artisans in your neighborhood. Nearby workers can quote or accept directly.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

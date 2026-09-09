@@ -36,6 +36,7 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet, onOpenHistor
     bookings,
     updateBookingStatus, 
     acceptJobByWorker,
+    submitWorkerQuote,
     pendingBroadcastingGigs,
     language,
     detectWorkerLocation,
@@ -45,6 +46,9 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet, onOpenHistor
   } = useAppState();
 
   const [isOnline, setIsOnline] = useState(true);
+  const [isQuoting, setIsQuoting] = useState(false);
+  const [quoteAmount, setQuoteAmount] = useState('');
+  const [quoteNote, setQuoteNote] = useState('');
 
   // Doorstep ratings & reviews reflection for this worker
   const completedWorkerBookings = (bookings || []).filter(
@@ -427,39 +431,217 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet, onOpenHistor
               </div>
             )}
 
-            {/* Action Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-              <button
-                onClick={() => handleReadoutGig(gig)}
-                className="px-4 py-2.5 rounded-xl bg-slate-950 text-white hover:bg-slate-900 text-xs font-bold flex items-center gap-2 transition"
-              >
-                <Volume2 className="w-4 h-4 text-amber-400" />
-                <span>Listen in Hindi (हिन्दी में सुनें)</span>
-              </button>
+            {/* Custom Quotation / Reverse Bidding Section */}
+            {(() => {
+              const myQuote = gig.quotes?.find(q => q.workerId === activeWorker?.id);
 
-              {isWithin10Km ? (
-                <button
-                  onClick={() => {
-                    acceptJobByWorker(gig.id, activeWorker);
-                    onOpenJobExecution();
-                  }}
-                  className="px-8 py-3 rounded-2xl bg-white hover:bg-emerald-50 text-emerald-950 text-xs font-black shadow-2xl flex items-center gap-2 transition scale-105"
-                >
-                  <Check className="w-4 h-4 text-emerald-600" />
-                  <span>ACCEPT JOB NOW (स्वीकार करें)</span>
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <button
-                    disabled
-                    className="px-6 py-3 rounded-2xl bg-white/20 text-white/60 text-xs font-bold cursor-not-allowed flex items-center gap-2"
-                  >
-                    <X className="w-4 h-4" />
-                    <span>OUT OF RANGE (&gt; 10 km)</span>
-                  </button>
+              return (
+                <div className="space-y-3">
+                  {/* If this worker has already submitted a quote */}
+                  {myQuote ? (
+                    <div className="bg-slate-950/90 border border-emerald-400/40 rounded-2xl p-4 text-white space-y-2 shadow-md">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-2 font-black text-xs text-emerald-300">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <span>YOUR CUSTOM BID IS LIVE (आपकी दर दर्ज है)</span>
+                        </span>
+                        <span className="bg-emerald-500/20 text-emerald-200 border border-emerald-400/40 px-3 py-0.5 rounded-full font-mono font-black text-xs">
+                          ₹{myQuote.quotedAmount} Quoted
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between text-xs text-slate-300 pt-1">
+                        <span>Your 88% Direct Payout: <strong className="text-white font-mono">₹{myQuote.workerPayout}</strong></span>
+                        <span>Dynamic Match Rank: <strong className="text-amber-300 font-mono">{myQuote.optimizationScore}% Optimal</strong></span>
+                      </div>
+                      {myQuote.quoteNotes && (
+                        <p className="text-[11px] text-slate-300 italic bg-white/5 p-2 rounded-lg">
+                          "{myQuote.quoteNotes}"
+                        </p>
+                      )}
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+                        <button
+                          onClick={() => {
+                            setIsQuoting(true);
+                            setQuoteAmount(myQuote.quotedAmount);
+                            setQuoteNote(myQuote.quoteNotes || '');
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition"
+                        >
+                          ✏️ Edit Your Quote
+                        </button>
+                        <button
+                          onClick={() => {
+                            acceptJobByWorker(gig.id, activeWorker, myQuote.quotedAmount);
+                            onOpenJobExecution();
+                          }}
+                          className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition shadow-md"
+                        >
+                          ⚡ Accept at ₹{myQuote.quotedAmount}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Quoting Input Drawer */}
+                  {isQuoting && isWithin10Km && (
+                    <div className="bg-slate-950 border border-amber-400/50 rounded-2xl p-4 sm:p-5 text-white space-y-3 shadow-2xl animate-in zoom-in-95">
+                      <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="w-4 h-4 text-amber-400" />
+                          <span className="font-bold text-xs sm:text-sm text-white font-['Outfit']">
+                            Quote Your Custom Amount (अपनी दर / बोली लगाएं)
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setIsQuoting(false)}
+                          className="text-xs text-slate-400 hover:text-white"
+                        >
+                          ✕ Cancel
+                        </button>
+                      </div>
+
+                      {/* Quick Presets */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] text-slate-400 font-bold">Quick Presets:</span>
+                        {[
+                          { label: `-₹50 (₹${Math.max(150, gig.totalAmount - 50)})`, val: Math.max(150, gig.totalAmount - 50) },
+                          { label: `Base (₹${gig.totalAmount})`, val: gig.totalAmount },
+                          { label: `+₹50 (₹${gig.totalAmount + 50})`, val: gig.totalAmount + 50 },
+                          { label: `+₹100 (₹${gig.totalAmount + 100})`, val: gig.totalAmount + 100 },
+                        ].map(p => (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => setQuoteAmount(p.val)}
+                            className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
+                              Number(quoteAmount) === p.val
+                                ? 'bg-amber-400 text-slate-950 font-black'
+                                : 'bg-white/10 text-white hover:bg-white/20'
+                            }`}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] text-slate-300 font-bold block mb-1">
+                            Your Quoted Amount to Citizen (₹)
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-2.5 text-slate-400 font-bold">₹</span>
+                            <input
+                              type="number"
+                              min="100"
+                              step="10"
+                              value={quoteAmount}
+                              onChange={(e) => setQuoteAmount(e.target.value)}
+                              placeholder={gig.totalAmount.toString()}
+                              className="w-full pl-7 pr-3 py-2 bg-slate-900 border border-amber-400/40 rounded-xl text-white font-black text-lg focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-slate-300 font-bold block mb-1">
+                            Message / Notes (सामान / समय विवरण)
+                          </label>
+                          <input
+                            type="text"
+                            value={quoteNote}
+                            onChange={(e) => setQuoteNote(e.target.value)}
+                            placeholder="e.g. Bringing tools, can arrive in 12 mins"
+                            className="w-full px-3 py-2 bg-slate-900 border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-amber-400 focus:outline-none h-[42px]"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Transparent math breakdown */}
+                      <div className="p-3 bg-white/5 border border-white/10 rounded-xl flex flex-wrap items-center justify-between text-xs">
+                        <span>Citizen Pays: <strong className="text-white font-mono">₹{quoteAmount || gig.totalAmount}</strong></span>
+                        <span className="text-emerald-400">Your Take-Home (88%): <strong className="font-mono">₹{Math.round((Number(quoteAmount) || gig.totalAmount) * 0.88)}</strong></span>
+                        <span className="text-sky-300">Health Reserve (7%): <strong className="font-mono">₹{Math.round((Number(quoteAmount) || gig.totalAmount) * 0.07)}</strong></span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const finalVal = Number(quoteAmount) || gig.totalAmount;
+                            submitWorkerQuote(gig.id, activeWorker, finalVal, quoteNote);
+                            setIsQuoting(false);
+                          }}
+                          className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-lg transition"
+                        >
+                          📤 Submit Quote to Citizen (बोली सबमिट करें)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const finalVal = Number(quoteAmount) || gig.totalAmount;
+                            acceptJobByWorker(gig.id, activeWorker, finalVal);
+                            onOpenJobExecution();
+                          }}
+                          className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg transition"
+                        >
+                          ⚡ Accept Immediately at ₹{quoteAmount || gig.totalAmount}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Bar */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                    <button
+                      onClick={() => handleReadoutGig(gig)}
+                      className="px-4 py-2.5 rounded-xl bg-slate-950 text-white hover:bg-slate-900 text-xs font-bold flex items-center gap-2 transition"
+                    >
+                      <Volume2 className="w-4 h-4 text-amber-400" />
+                      <span>Listen in Hindi (हिन्दी में सुनें)</span>
+                    </button>
+
+                    {isWithin10Km ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {!isQuoting && !myQuote && (
+                          <button
+                            onClick={() => {
+                              setIsQuoting(true);
+                              setQuoteAmount(gig.totalAmount);
+                            }}
+                            className="px-5 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black shadow-lg flex items-center gap-1.5 transition"
+                          >
+                            <DollarSign className="w-4 h-4 text-slate-950" />
+                            <span>Quote Custom Amount (दर तय करें)</span>
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => {
+                            acceptJobByWorker(gig.id, activeWorker);
+                            onOpenJobExecution();
+                          }}
+                          className="px-7 py-3 rounded-2xl bg-white hover:bg-emerald-50 text-emerald-950 text-xs font-black shadow-2xl flex items-center gap-2 transition scale-105"
+                        >
+                          <Check className="w-4 h-4 text-emerald-600" />
+                          <span>ACCEPT AT BASE RATE (₹{gig.totalAmount})</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <button
+                          disabled
+                          className="px-6 py-3 rounded-2xl bg-white/20 text-white/60 text-xs font-bold cursor-not-allowed flex items-center gap-2"
+                        >
+                          <X className="w-4 h-4" />
+                          <span>OUT OF RANGE (&gt; 10 km)</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
+              );
+            })()}
           </div>
         );
       })()}
