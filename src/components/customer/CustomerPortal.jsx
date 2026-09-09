@@ -191,55 +191,6 @@ export function CustomerPortal() {
         </div>
       </div>
 
-      {/* Floating Active Order Notification Pill (Urban Company Style) */}
-      {activeBooking && activeBooking.status !== 'COMPLETED' && activeTab !== 'active' && (
-        <div 
-          onClick={() => setActiveTab('active')}
-          className="cursor-pointer bg-gradient-to-r from-emerald-800 via-[#1B4D3E] to-teal-900 text-white rounded-2xl p-4 px-6 shadow-lg flex items-center justify-between gap-4 animate-in slide-in-from-top-2 hover:opacity-95 transition"
-        >
-          <div className="flex items-center gap-3">
-            <span className="w-3 h-3 rounded-full bg-amber-400 animate-ping" />
-            <div>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-200 font-bold block">
-                ACTIVE ORDER IN PROGRESS · {activeBooking.status}
-              </span>
-              <h4 className="text-sm font-bold text-white">
-                {activeBooking.subServiceName || activeBooking.serviceTitle} {activeBooking.workerName ? `· Expert: ${activeBooking.workerName}` : '· Connecting verified technician near you'}
-              </h4>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 font-black text-xs text-amber-300">
-            <span>Track Order & Live Radar &rarr;</span>
-          </div>
-        </div>
-      )}
-
-      {/* Floating Completed Order - Rate Artisan Prompt Banner */}
-      {unratedBooking && (
-        <div 
-          onClick={() => setReviewBooking(unratedBooking)}
-          className="cursor-pointer bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white rounded-2xl p-4 px-6 shadow-xl flex items-center justify-between gap-4 animate-in slide-in-from-top-2 hover:scale-[1.01] transition border-2 border-amber-300"
-        >
-          <div className="flex items-center gap-3">
-            <span className="w-3 h-3 rounded-full bg-white animate-ping" />
-            <div>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-100 font-bold block">
-                🎉 SERVICE COMPLETED · PLEASE RATE YOUR ARTISAN
-              </span>
-              <h4 className="text-sm font-black text-white">
-                {unratedBooking.subServiceName || unratedBooking.serviceTitle} · Expert: {unratedBooking.workerName || 'Cooperative Artisan'}
-              </h4>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 font-black text-xs bg-white text-amber-950 px-4 py-2 rounded-xl shadow-sm">
-            <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
-            <span>Rate Worker (1-5★) &rarr;</span>
-          </div>
-        </div>
-      )}
-
       {/* Active Tab Content */}
       {activeTab === 'services' && (
         <ServiceGrid
