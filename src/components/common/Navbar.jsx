@@ -123,17 +123,6 @@ export function Navbar({ onOpenArchitecture, onOpenRoleModal }) {
                 >
                   {t.navWhereMoneyGoes}
                 </button>
-                <button
-                  onClick={detectUserLocation}
-                  disabled={isLocating}
-                  className="hover:text-[#1B4D3E] text-xs font-mono bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm flex items-center gap-1.5"
-                  title="Your Real GPS Location for 10 km Geofence"
-                >
-                  <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="truncate max-w-[170px]">
-                    {isLocating ? 'Detecting GPS...' : customer.address.split(',')[0]}
-                  </span>
-                </button>
               </>
             ) : currentRole === 'worker' ? (
               <>
@@ -169,18 +158,9 @@ export function Navbar({ onOpenArchitecture, onOpenRoleModal }) {
           {/* Right Controls */}
           <div className="flex items-center gap-2 sm:gap-3">
             
-            {/* Dedicated Role Badge */}
+            {/* Dedicated Role Badge (Only shown in Worker mode) */}
             <div className="hidden sm:flex items-center">
-              {currentRole === 'customer' ? (
-                <button
-                  onClick={() => onOpenRoleModal ? onOpenRoleModal('customer') : setCurrentRole('customer')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs font-bold font-mono transition cursor-pointer shadow-sm"
-                  title="Click to view/create Citizen ID"
-                >
-                  <span>🏠 Citizen: {customer.id || 'CIT-MH-501'}</span>
-                  <span className="text-emerald-700 font-sans">({customer.name.split(' ')[0]})</span>
-                </button>
-              ) : currentRole === 'worker' ? (
+              {currentRole === 'worker' ? (
                 <button
                   onClick={() => onOpenRoleModal ? onOpenRoleModal('worker') : setCurrentRole('worker')}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 text-xs font-bold font-mono transition cursor-pointer shadow-sm"
@@ -189,11 +169,7 @@ export function Navbar({ onOpenArchitecture, onOpenRoleModal }) {
                   <span>🧰 Partner: {activeWorker?.cooperativeMemberId || 'COOP-MH-4819'}</span>
                   <span className="text-amber-700 font-sans">({activeWorker?.name.split(' ')[0]})</span>
                 </button>
-              ) : (
-                <div className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-800 text-xs font-mono font-bold">
-                  {currentRole.toUpperCase()}
-                </div>
-              )}
+              ) : null}
             </div>
 
             {/* Quick Role Switcher Button */}
