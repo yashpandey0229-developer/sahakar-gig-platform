@@ -18,7 +18,8 @@ import {
   Receipt,
   Printer,
   X,
-  LifeBuoy
+  LifeBuoy,
+  Star
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 import { LiveMap } from '../common/LiveMap';
@@ -29,6 +30,8 @@ import { HelpSupportModal } from '../common/HelpSupportModal';
 export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
   const { 
     activeBooking, 
+    activeBookingId,
+    setActiveBookingId,
     bookings,
     updateBookingStatus, 
     updateBooking,
@@ -45,7 +48,9 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
   const [showHelpModal, setShowHelpModal] = useState(false);
 
   // Safely resolve the active job (even after completion transition)
-  const currentJob = activeBooking || (lastCompletedBookingId ? bookings?.find(b => b.id === lastCompletedBookingId) : null);
+  const currentJob = activeBooking || 
+    (lastCompletedBookingId ? bookings?.find(b => b.id === lastCompletedBookingId) : null) ||
+    (activeBookingId ? bookings?.find(b => b.id === activeBookingId) : null);
 
   const [workerPhoto, setWorkerPhoto] = useState(currentJob?.completionPhoto || null);
   const workerFileInputRef = React.useRef(null);
@@ -115,16 +120,28 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
 
   // 4. Verify End OTP
   const handleVerifyEndOtp = () => {
-    if (inputEndOtp.trim() === currentJob.endOtp || inputEndOtp === '1234') {
-      setOtpError('');
-      speechService.playChime('success');
-      const bookingId = currentJob.id;
-      setLastCompletedBookingId(bookingId);
-      updateBookingStatus(bookingId, 'COMPLETED');
-      setSuccessStep(true);
-    } else {
-      speechService.playChime('alert');
-      setOtpError('Invalid Completion OTP. Please ask customer for the 4-digit code shown on their app screen.');
+    try {
+      const enteredOtp = inputEndOtp.trim();
+      const actualOtp = String(currentJob?.endOtp || '').trim();
+
+      if (enteredOtp === actualOtp || enteredOtp === '1234') {
+        setOtpError('');
+        try {
+          speechService.playChime('success');
+        } catch (e) {}
+        const bookingId = currentJob.id;
+        setLastCompletedBookingId(bookingId);
+        updateBookingStatus(bookingId, 'COMPLETED');
+        setSuccessStep(true);
+      } else {
+        try {
+          speechService.playChime('alert');
+        } catch (e) {}
+        setOtpError('Invalid Completion OTP. Please ask customer for the 4-digit code shown on their app screen.');
+      }
+    } catch (err) {
+      console.error('Error verifying end OTP:', err);
+      setOtpError('Error processing verification. Please try again.');
     }
   };
 
@@ -143,7 +160,10 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
       <div className="flex items-center justify-between">
         <div>
           <button
-            onClick={onBackToDashboard}
+            onClick={() => {
+              if (setActiveBookingId) setActiveBookingId(null);
+              onBackToDashboard();
+            }}
             className="text-xs text-slate-500 hover:text-slate-900 mb-1 flex items-center gap-1 font-bold"
           >
             ← Back to Partner HUD
@@ -552,7 +572,10 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
                   View Wallet & Cashout
                 </button>
                 <button
-                  onClick={onBackToDashboard}
+                  onClick={() => {
+                    if (setActiveBookingId) setActiveBookingId(null);
+                    onBackToDashboard();
+                  }}
                   className="px-5 py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold"
                 >
                   Done
