@@ -226,6 +226,32 @@ router.patch('/workers/:id/wallet', async (req, res) => {
   res.json({ success: true, message: 'Wallet updated in local mode' });
 });
 
+router.patch('/workers/:id', async (req, res) => {
+  const updates = req.body;
+  
+  // Update in-memory
+  inMemoryWorkers = inMemoryWorkers.map(w => {
+    if (w.id === req.params.id) {
+      return { ...w, ...updates };
+    }
+    return w;
+  });
+
+  if (isMongoConnected()) {
+    try {
+      const updated = await Worker.findOneAndUpdate(
+        { id: req.params.id },
+        { $set: updates },
+        { new: true }
+      );
+      if (updated) return res.json(updated);
+    } catch (e) {
+      console.error('Error updating worker in MongoDB:', e);
+    }
+  }
+  res.json({ success: true, message: 'Worker profile updated', updates });
+});
+
 // ==========================================
 // 4B. Real Transactional Email Engine (Brevo API & SMTP)
 // ==========================================

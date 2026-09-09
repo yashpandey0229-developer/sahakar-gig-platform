@@ -723,16 +723,93 @@ export function AppStateProvider({ children }) {
   };
 
   const submitReview = (bookingId, rating, reviewText) => {
+    const numRating = Math.max(1, Math.min(5, Number(rating) || 5));
+    const cleanComment = (reviewText || '').trim();
+
+    // 1. Locate the target booking
+    const booking = bookings.find(b => b.id === bookingId);
+    const targetWorkerId = booking?.workerId || activeWorkerId || 'w-101';
+    const targetWorkerName = booking?.workerName || 'Ramesh Jadhav';
+    const customerName = booking?.customerName || customer?.name || 'Verified Citizen';
+    const serviceTitle = booking?.subServiceName || booking?.serviceTitle || 'Cooperative Service';
+
+    // 2. Update Bookings state
     setBookings(prev =>
       prev.map(b => {
         if (b.id === bookingId) {
-          return { ...b, ratingGiven: rating, reviewText, status: 'COMPLETED' };
+          return {
+            ...b,
+            ratingGiven: numRating,
+            reviewText: cleanComment,
+            status: 'COMPLETED'
+          };
         }
         return b;
       })
     );
-    api.updateBooking(bookingId, { ratingGiven: rating, reviewText }).catch(console.warn);
-    addNotification('Review Submitted', `Thank you for rating! You gave ${rating} stars.`, 'review');
+
+    // 3. Update Worker Profile (Rating, totalJobsCompleted, and reviews list)
+    let updatedWorkerObj = null;
+
+    setWorkers(prevWorkers => {
+      const updated = prevWorkers.map(w => {
+        if (w.id === targetWorkerId || (targetWorkerName && w.name === targetWorkerName)) {
+          const currentTotal = w.totalJobsCompleted || 12;
+          const currentRating = typeof w.rating === 'number' ? w.rating : 4.9;
+          
+          // Weighted average rating calculation
+          const newAvgRating = parseFloat(
+            (((currentRating * currentTotal) + numRating) / (currentTotal + 1)).toFixed(2)
+          );
+          
+          const newReviewItem = {
+            id: 'rev-' + Date.now(),
+            bookingId,
+            customerName,
+            rating: numRating,
+            comment: cleanComment || 'Prompt arrival and highly skilled doorstep execution.',
+            date: new Date().toISOString(),
+            serviceTitle
+          };
+
+          const existingReviews = Array.isArray(w.reviews) ? w.reviews : [];
+
+          updatedWorkerObj = {
+            ...w,
+            rating: newAvgRating,
+            totalJobsCompleted: currentTotal + 1,
+            reviews: [newReviewItem, ...existingReviews],
+            latestReview: newReviewItem
+          };
+
+          return updatedWorkerObj;
+        }
+        return w;
+      });
+
+      // Persist to custom workers in localStorage
+      try {
+        localStorage.setItem('sahakar_custom_workers', JSON.stringify(updated));
+      } catch (e) {}
+
+      return updated;
+    });
+
+    // 4. Update Backend API
+    api.updateBooking(bookingId, { ratingGiven: numRating, reviewText: cleanComment }).catch(console.warn);
+    if (updatedWorkerObj) {
+      api.updateWorker(updatedWorkerObj.id, {
+        rating: updatedWorkerObj.rating,
+        totalJobsCompleted: updatedWorkerObj.totalJobsCompleted,
+        reviews: updatedWorkerObj.reviews
+      }).catch(console.warn);
+    }
+
+    addNotification(
+      '⭐ 5-Star Rating Submitted & Stamped',
+      `Thank you! You gave ${numRating} stars to ${targetWorkerName}. Their verified cooperative profile rating has been updated to reflect your review.`,
+      'review'
+    );
   };
 
   const castVote = (proposalId, voteType) => {

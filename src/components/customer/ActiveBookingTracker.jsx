@@ -374,15 +374,82 @@ export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
             <span>View & Download 88-7-5 Tax Receipt (PDF)</span>
           </button>
 
-          {/* Rating button if completed */}
+          {/* Rating button & verification card if completed */}
           {booking.status === 'COMPLETED' && (
-            <button
-              onClick={() => onOpenReviewModal(booking)}
-              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 transition"
-            >
-              <Star className="w-4 h-4 fill-white" />
-              <span>Leave Cooperative Review & Tip</span>
-            </button>
+            booking.ratingGiven ? (
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 space-y-2.5 shadow-sm animate-in fade-in">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-200/80 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-amber-300">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                    Verified Rating Stamped
+                  </span>
+                  <span className="text-xs font-mono font-black text-amber-900">
+                    {booking.ratingGiven}.0 / 5.0
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      className={`w-5 h-5 ${
+                        star <= booking.ratingGiven
+                          ? 'fill-amber-400 text-amber-500'
+                          : 'text-slate-200'
+                      }`}
+                    />
+                  ))}
+                  <span className="text-xs font-black text-slate-800 ml-1.5">
+                    {booking.ratingGiven === 5 ? '⭐⭐⭐⭐⭐ Outstanding (5 Stars)' : `${booking.ratingGiven} Stars Given`}
+                  </span>
+                </div>
+
+                {booking.reviewText && (
+                  <p className="text-xs text-slate-700 bg-white/90 p-2.5 rounded-xl border border-amber-200/80 italic font-medium leading-relaxed">
+                    "{booking.reviewText}"
+                  </p>
+                )}
+
+                <div className="flex items-center justify-between pt-1 border-t border-amber-200/70 text-[11px]">
+                  <span className="text-emerald-800 font-bold flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-emerald-600" />
+                    Live on {booking.workerName || 'worker'}'s profile
+                  </span>
+                  <button
+                    onClick={() => onOpenReviewModal(booking)}
+                    className="text-amber-900 hover:text-amber-950 font-bold underline cursor-pointer"
+                  >
+                    Update Rating
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 via-white to-orange-50 border-2 border-amber-400 shadow-md space-y-2.5 animate-in fade-in">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                      Rate {booking.workerName || 'Artisan'} in 5 Stars
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300">
+                    Awaiting Rating
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-600 font-medium">
+                  Rate your doorstep experience. Your 5-star rating directly reflects on {booking.workerName || 'artisan'}'s cooperative profile and priority dispatch!
+                </p>
+
+                <button
+                  onClick={() => onOpenReviewModal(booking)}
+                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition hover:scale-[1.01]"
+                >
+                  <Star className="w-4 h-4 fill-white" />
+                  <span>Rate in 5 Stars & Leave Praise (5 स्टार रेटिंग दें)</span>
+                </button>
+              </div>
+            )
           )}
 
         </div>

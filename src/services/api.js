@@ -54,6 +54,12 @@ export const api = {
       body: JSON.stringify(walletData),
     });
   },
+  updateWorker: async (id, updates) => {
+    return await fetchJson(`/workers/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  },
 
   // Bookings
   getBookings: async () => {
