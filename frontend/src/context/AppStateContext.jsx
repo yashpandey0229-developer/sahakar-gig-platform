@@ -391,10 +391,10 @@ export function AppStateProvider({ children }) {
 
   const activeWorker = workers.find(w => w.id === activeWorkerId) || workers[0];
   
-  // Intelligent active booking resolution for dual-device view
-  const activeBooking = bookings.find(b => b.id === activeBookingId)
-    || (currentRole === 'worker' ? bookings.find(b => b.workerId === activeWorker?.id && b.status !== 'COMPLETED') : null)
-    || (currentRole === 'customer' ? bookings.find(b => b.customerId === customer?.id && b.status !== 'COMPLETED') : null);
+  // Strict active booking resolution by authenticated role
+  const activeBooking = currentRole === 'worker'
+    ? bookings.find(b => (b.workerId === activeWorker?.id || (b.workerEmail && activeWorker?.email && b.workerEmail.toLowerCase() === activeWorker.email.toLowerCase())) && b.status !== 'COMPLETED' && b.status !== 'CANCELLED')
+    : bookings.find(b => (b.customerId === customer?.id || (customer?.email && b.customerEmail && b.customerEmail.toLowerCase() === customer.email.toLowerCase()) || (activeBookingId && b.id === activeBookingId)) && b.status !== 'COMPLETED' && b.status !== 'CANCELLED');
 
   const pendingBroadcastingGigs = bookings.filter(b => b.status === 'BROADCASTING');
 

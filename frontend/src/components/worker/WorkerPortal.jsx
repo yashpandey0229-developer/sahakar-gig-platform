@@ -10,12 +10,14 @@ import {
   Volume2,
   ChevronDown,
   ArrowLeft,
-  ShieldCheck
+  ShieldCheck,
+  FileText
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 import { WorkerDashboard } from './WorkerDashboard';
 import { ActiveJobExecution } from './ActiveJobExecution';
 import { CooperativeWallet } from './CooperativeWallet';
+import { WorkerJobHistory } from './WorkerJobHistory';
 
 export function WorkerPortal() {
   const { 
@@ -120,18 +122,14 @@ export function WorkerPortal() {
             <span>+ {language === 'hi' ? 'साथी प्रोफाइल / नया पंजीकरण' : 'Register / Edit Profile'}</span>
           </button>
 
-          {/* Persona Switcher for testing */}
-          <select
-            value={activeWorker?.id}
-            onChange={(e) => setActiveWorkerId(e.target.value)}
-            className="bg-[#1C2A39] border border-[#2D3F54] text-white text-xs font-mono px-3 py-2 rounded-xl focus:outline-none cursor-pointer"
-          >
-            {workers.map((w) => (
-              <option key={w.id} value={w.id} className="bg-[#111C26] text-white">
-                {w.name} ({w.skills[0]}) - ⭐{w.rating}
-              </option>
-            ))}
-          </select>
+          {/* Locked Authenticated Partner Identity Badge */}
+          <div className="flex items-center gap-2 bg-[#1C2A39] border border-amber-500/40 px-3.5 py-1.5 rounded-xl text-xs font-mono">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="font-bold text-white truncate max-w-[140px]">{activeWorker?.name}</span>
+            <span className="text-amber-400 font-bold shrink-0">
+              ⭐ {typeof activeWorker?.rating === 'number' ? activeWorker.rating.toFixed(2) : (activeWorker?.rating || '4.90')}
+            </span>
+          </div>
 
           {/* Quick Exit to Customer Mode Button */}
           <button
@@ -303,6 +301,18 @@ export function WorkerPortal() {
         </button>
 
         <button
+          onClick={() => setActiveTab('history')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+            activeTab === 'history'
+              ? 'bg-[#16202C] text-white shadow-sm'
+              : 'bg-white border border-[#D5CEBF] text-[#16202C] hover:bg-[#EFEAE1]'
+          }`}
+        >
+          <FileText className="w-3.5 h-3.5" />
+          <span>{language === 'hi' ? 'कार्य इतिहास व रेटिंग' : 'Completed Gigs & Ratings'}</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('wallet')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
             activeTab === 'wallet'
@@ -320,6 +330,7 @@ export function WorkerPortal() {
         <WorkerDashboard
           onOpenJobExecution={() => setActiveTab('execution')}
           onOpenWallet={() => setActiveTab('wallet')}
+          onOpenHistory={() => setActiveTab('history')}
         />
       )}
 
@@ -327,6 +338,12 @@ export function WorkerPortal() {
         <ActiveJobExecution
           onBackToDashboard={() => setActiveTab('dashboard')}
           onOpenWallet={() => setActiveTab('wallet')}
+        />
+      )}
+
+      {activeTab === 'history' && (
+        <WorkerJobHistory
+          onOpenJobExecution={() => setActiveTab('execution')}
         />
       )}
 

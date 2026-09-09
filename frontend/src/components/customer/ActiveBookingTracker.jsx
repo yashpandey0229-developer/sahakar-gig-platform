@@ -32,7 +32,7 @@ import { HelpSupportModal } from '../common/HelpSupportModal';
 import { speechService } from '../../services/speechService';
 
 export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
-  const { updateBookingStatus, setCurrentRole, setActiveWorkerId, addNotification } = useAppState();
+  const { updateBookingStatus, setCurrentRole, addNotification } = useAppState();
   const [copiedOtp, setCopiedOtp] = useState(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -74,12 +74,7 @@ export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
     setTimeout(() => setCopiedOtp(null), 2000);
   };
 
-  const switchToWorkerPerspective = () => {
-    if (booking.workerId) {
-      setActiveWorkerId(booking.workerId);
-    }
-    setCurrentRole('worker');
-  };
+
 
   return (
     <div className="bg-white rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl border border-slate-200 animate-in fade-in">

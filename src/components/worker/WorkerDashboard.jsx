@@ -29,7 +29,7 @@ import { useAppState } from '../../context/AppStateContext';
 import { speechService } from '../../services/speechService';
 import { calculateDistanceKm } from '../../services/dispatchEngine';
 
-export function WorkerDashboard({ onOpenJobExecution, onOpenWallet }) {
+export function WorkerDashboard({ onOpenJobExecution, onOpenWallet, onOpenHistory }) {
   const { 
     activeWorker, 
     activeBooking, 
@@ -542,6 +542,14 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet }) {
             <span className="text-xs font-bold text-slate-600 bg-slate-50 px-3.5 py-2 rounded-2xl border border-slate-200 font-mono">
               Total Reviews: <strong className="text-slate-900">{activeWorker.totalJobsCompleted || displayReviews.length}</strong>
             </span>
+            {onOpenHistory && (
+              <button
+                onClick={onOpenHistory}
+                className="px-3.5 py-2 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-black transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+              >
+                <span>View Job History →</span>
+              </button>
+            )}
           </div>
         </div>
 
