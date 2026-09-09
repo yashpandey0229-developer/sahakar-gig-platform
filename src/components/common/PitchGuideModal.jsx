@@ -12,8 +12,8 @@ export function PitchGuideModal({ isOpen, onClose }) {
       a: "Commercial gig giants (Urban Company, Uber, TaskRabbit) extract 25-35% commission and subject gig workers to arbitrary account deactivations. SahakarGig introduces a worker-owned cooperative model under the Ministry of Cooperation, capping platform maintenance to 5%, allocating 88% direct payouts to workers, and 7% into a collective healthcare welfare reserve."
     },
     {
-      q: "What makes the Fair-Rotation Dispatch Algorithm innovative?",
-      a: "Instead of private platforms prioritizing high-commission surge algorithms, SahakarGig balances geo-proximity with equitable income rotation. If an artisan hasn't received a booking in the current shift, their rotation score increases, preventing monopolization by a few workers."
+      q: "How does the Dynamic Multi-Objective Optimization Engine choose the best worker?",
+      a: "Instead of private platforms using predatory surge multipliers, SahakarGig applies a dynamic Pareto-optimal function: it simultaneously scores Nearest Distance (40% for rapid ETA), Best Customer Rating (35% for proven skill), and Less Cost (25% for citizen affordability) to automatically dispatch the optimal cooperative artisan."
     },
     {
       q: "How does the Dual-Key OTP verification prevent fraud?",

@@ -72,6 +72,8 @@ export const INITIAL_WORKERS = [
     cooperativeMemberId: 'PN-ELEC-0442',
     bankAccountMasked: 'HDFC •••• 4901',
     isOnline: true,
+    hourlyRate: 249,
+    visitingCharge: 149,
     fairRotationScore: 98,
     location: { lat: 18.5204, lng: 73.8567 },
     wallet: {
@@ -94,6 +96,8 @@ export const INITIAL_WORKERS = [
     cooperativeMemberId: 'PN-CLEN-0108',
     bankAccountMasked: 'SBI •••• 8823',
     isOnline: true,
+    hourlyRate: 199,
+    visitingCharge: 99,
     fairRotationScore: 94,
     location: { lat: 18.5314, lng: 73.8446 },
     wallet: {
@@ -116,6 +120,8 @@ export const INITIAL_WORKERS = [
     cooperativeMemberId: 'PN-PLUM-0319',
     bankAccountMasked: 'BOI •••• 1120',
     isOnline: true,
+    hourlyRate: 219,
+    visitingCharge: 129,
     fairRotationScore: 91,
     location: { lat: 18.5122, lng: 73.8690 },
     wallet: {
@@ -138,6 +144,8 @@ export const INITIAL_WORKERS = [
     cooperativeMemberId: 'PN-HVAC-0082',
     bankAccountMasked: 'ICICI •••• 6742',
     isOnline: true,
+    hourlyRate: 299,
+    visitingCharge: 179,
     fairRotationScore: 89,
     location: { lat: 18.5401, lng: 73.8320 },
     wallet: {

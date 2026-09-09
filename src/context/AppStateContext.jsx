@@ -654,6 +654,8 @@ export function AppStateProvider({ children }) {
       workerRating: topCandidate.rating,
       workerSociety: topCandidate.societyName,
       workerLocation: { ...topCandidate.location },
+      hourlyRate: topCandidate.hourlyRate || 249,
+      optimizationScore: topCandidate.optimizationScore || 95,
       status: 'ACCEPTED',
       etaMins: topCandidate.estimatedEtaMins || 10
     };
@@ -670,13 +672,13 @@ export function AppStateProvider({ children }) {
     api.updateBooking(bookingId, updates).catch(console.warn);
 
     addNotification(
-      'Worker Assigned via Fair-Rotation',
-      `${topCandidate.name} from "${topCandidate.societyName}" accepted the dispatch.`,
+      'Optimal Artisan Dispatched (Nearest • Top-Rated • Best Cost)',
+      `${topCandidate.name} (${topCandidate.distanceKm || 1.8} km • ${topCandidate.rating}★ • ₹${topCandidate.hourlyRate || 249}/hr) matched.`,
       'match'
     );
 
     speechService.speak(
-      `नया कार्य स्वीकार किया गया: ${topCandidate.name} आपके स्थान के लिए रवाना हो रहे हैं।`,
+      `सर्वोत्तम कारीगर का चयन हुआ है: ${topCandidate.name}, रेटिंग ${topCandidate.rating} स्टार, आपके स्थान के लिए रवाना हो रहे हैं।`,
       'hi'
     );
   };

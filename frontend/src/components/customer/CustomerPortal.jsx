@@ -370,7 +370,7 @@ export function CustomerPortal() {
             <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-900">
               <Sparkles className="w-4 h-4 text-emerald-700 shrink-0" />
               <span>
-                Your <strong>{modalRating}★ rating</strong> directly reflects on {reviewBooking.workerName || 'the artisan'}'s profile and increases their fair-rotation priority!
+                Your <strong>{modalRating}★ rating</strong> directly boosts {reviewBooking.workerName || 'the artisan'}'s rank in the Dynamic Optimization Engine (Top-Rated Priority)!
               </span>
             </div>
 

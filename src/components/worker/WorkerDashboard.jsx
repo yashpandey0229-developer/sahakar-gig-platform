@@ -300,17 +300,28 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet, onOpenHistor
           </span>
         </div>
 
-        {/* Fair Rotation Score */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm hover:border-purple-500 transition">
-          <div className="flex items-center justify-between text-xs text-purple-700 mb-1 font-bold">
-            <span>Fair-Rotation Score</span>
-            <TrendingUp className="w-4 h-4 text-purple-500" />
+        {/* Dynamic Optimization Priority */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm hover:border-emerald-500 transition">
+          <div className="flex items-center justify-between text-xs text-emerald-700 mb-1 font-bold">
+            <span>Dynamic Dispatch Rank</span>
+            <TrendingUp className="w-4 h-4 text-emerald-500" />
           </div>
-          <div className="text-3xl font-black text-purple-600">
-            {activeWorker.fairRotationScore}%
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-black text-emerald-600">
+              ₹{activeWorker.hourlyRate || 249}
+            </span>
+            <span className="text-xs text-slate-500 font-semibold">/hr base</span>
           </div>
-          <span className="text-[10px] text-slate-500 block mt-2 font-medium">
-            Equitable dispatch priority
+          <div className="flex items-center gap-1.5 mt-2">
+            <span className="text-[10px] bg-amber-50 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-200">
+              ★ {activeWorker.rating || 4.9}
+            </span>
+            <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+              📍 Nearest Priority
+            </span>
+          </div>
+          <span className="text-[10px] text-slate-500 block mt-1.5 font-medium">
+            Optimized: Distance • Rating • Cost
           </span>
         </div>
 
@@ -520,7 +531,7 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet, onOpenHistor
             Standing by on Cooperative Radar
           </h3>
           <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
-            You are online with an outstanding fair-rotation score ({activeWorker.fairRotationScore}%). New incoming gig dispatches in Shivajinagar & Kothrud will pop up here with loud audio chimes.
+            You are online with Dynamic Optimization active ({activeWorker.rating}★ rating • ₹{activeWorker.hourlyRate || 249}/hr rate). Incoming citizen gig dispatches will dynamically match via Nearest Distance, Best Rating & Less Cost.
           </p>
         </div>
       )}

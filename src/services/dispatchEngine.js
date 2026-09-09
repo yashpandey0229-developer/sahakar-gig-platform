@@ -1,4 +1,4 @@
-// Fair Dispatch & Geolocation Dispatch Engine for SahakarGig (SIH26089)
+// Dynamic Multi-Objective Dispatch & Optimization Engine for SahakarGig (SIH26089)
 
 /**
  * Calculates distance in kilometers between two coordinates using Haversine formula
@@ -18,53 +18,122 @@ export function calculateDistanceKm(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Fair Dispatch Priority Algorithm:
- * Rather than pure "star rating monopoly" which starves newer or honest workers,
- * we combine:
- * 1. Proximity Weight (40%) - Quick ETA for customer
- * 2. Fair-Rotation Score (35%) - Equitable distribution of daily earning opportunities
- * 3. Skill & Certification Match (15%) - Verified NSDC / ITI badges
- * 4. Customer Rating Factor (10%) - Minimum threshold quality assurance
+ * Dynamic Multi-Objective Optimization Dispatch Algorithm:
+ * Replaces the legacy 35% rotation algorithm with a real-time Pareto-optimal
+ * Multi-Criteria Decision Analysis (MCDA) function that dynamically balances:
+ * 
+ * 1. Proximity / Nearest Factor (40% Weight):
+ *    Minimizes customer wait time by evaluating real Haversine GPS distance.
+ *    Closer artisans receive higher proximity scores.
+ * 
+ * 2. Quality / Best Rating Factor (35% Weight):
+ *    Ensures superior craftsmanship and customer satisfaction.
+ *    Higher verified star ratings (e.g. 4.9★, 4.95★) are heavily weighted.
+ * 
+ * 3. Cost-Efficiency / Affordability Factor (25% Weight):
+ *    Protects citizens from surge price exploitation.
+ *    Workers with lower hourly/visiting rates get higher affordability scores,
+ *    dynamically favoring the most economical choice without compromising quality.
+ * 
+ * Mathematical Formulation:
+ * OptimizationScore = (ProximityScore * 0.40) + (RatingScore * 0.35) + (CostScore * 0.25)
  */
-export function findBestMatchingWorkers(serviceId, customerLocation, allWorkers) {
+export function findBestMatchingWorkers(serviceId, customerLocation, allWorkers, options = {}) {
   const eligibleWorkers = allWorkers.filter(w => 
-    w.status === 'online' && w.skills.includes(serviceId)
+    w.status === 'online' && w.skills && w.skills.includes(serviceId)
   );
 
-  const scoredWorkers = eligibleWorkers.map(worker => {
+  if (!eligibleWorkers || eligibleWorkers.length === 0) {
+    const onlineWorkers = allWorkers.filter(w => w.status === 'online');
+    if (onlineWorkers.length === 0) return allWorkers.slice(0, 3);
+    return onlineWorkers;
+  }
+
+  // Pre-calculate distances and costs for cohort normalization
+  const workerMetrics = eligibleWorkers.map(worker => {
     const distance = calculateDistanceKm(
-      customerLocation.lat,
-      customerLocation.lng,
-      worker.location.lat,
-      worker.location.lng
+      customerLocation?.lat || 18.5298,
+      customerLocation?.lng || 73.8472,
+      worker.location?.lat || 18.5298,
+      worker.location?.lng || 73.8472
     );
 
-    // Normalize proximity score (closer is higher, max 15km radius)
-    const proximityScore = Math.max(0, (15 - distance) / 15) * 100;
-    const rotationScore = worker.fairRotationScore || 85;
-    const ratingScore = (worker.rating / 5) * 100;
-    const certScore = worker.skillIndiaBadge ? 100 : 80;
+    const cost = Number(worker.hourlyRate || worker.visitingCharge || worker.baseRate || 249);
+    const rating = Number(worker.rating || 4.8);
 
-    // Weighted aggregate score
-    const totalScore = (
+    return {
+      worker,
+      distance,
+      cost,
+      rating
+    };
+  });
+
+  // Calculate cohort min/max for dynamic scaling
+  const distances = workerMetrics.map(m => m.distance);
+  const costs = workerMetrics.map(m => m.cost);
+
+  const minDistance = Math.min(...distances);
+  const maxDistance = Math.max(...distances);
+  const minCost = Math.min(...costs);
+  const maxCost = Math.max(...costs);
+
+  const scoredWorkers = workerMetrics.map(({ worker, distance, cost, rating }) => {
+    // 1. Proximity Score (40%): Max score for nearest; decay over 15km
+    let proximityScore = 100;
+    if (maxDistance > minDistance) {
+      const relativeCloseness = 1 - (distance - minDistance) / (maxDistance - minDistance);
+      const absoluteCloseness = Math.max(0, (15 - distance) / 15);
+      proximityScore = Math.round((relativeCloseness * 0.6 + absoluteCloseness * 0.4) * 100);
+    } else {
+      proximityScore = Math.round(Math.max(0, (15 - distance) / 15) * 100);
+    }
+    proximityScore = Math.max(10, Math.min(100, proximityScore));
+
+    // 2. Rating Score (35%): Direct scaling based on customer feedback
+    const ratingScore = Math.max(20, Math.min(100, Math.round((rating / 5) * 100)));
+
+    // 3. Cost Optimization Score (25%): Lower cost = higher score for citizen affordability
+    let costScore = 85;
+    if (maxCost > minCost) {
+      const costSavingsRatio = 1 - (cost - minCost) / (maxCost - minCost);
+      costScore = Math.round(50 + costSavingsRatio * 50);
+    } else {
+      costScore = Math.max(30, Math.min(100, Math.round(100 - (cost / 350) * 40)));
+    }
+    costScore = Math.max(20, Math.min(100, costScore));
+
+    // Composite Dynamic Optimization Score (Weights sum to 100%)
+    const optimizationScore = Math.round(
       proximityScore * 0.40 +
-      rotationScore * 0.35 +
-      certScore * 0.15 +
-      ratingScore * 0.10
+      ratingScore * 0.35 +
+      costScore * 0.25
     );
 
-    const etaMinutes = Math.max(8, Math.round(distance * 3.5 + 4));
+    const etaMinutes = Math.max(6, Math.round(distance * 3.2 + 3));
 
     return {
       ...worker,
       distanceKm: distance,
-      matchScore: Math.round(totalScore),
-      estimatedEtaMins: etaMinutes
+      hourlyRate: cost,
+      cost,
+      proximityScore,
+      ratingScore,
+      costScore,
+      optimizationScore,
+      matchScore: optimizationScore, // backward compatibility
+      estimatedEtaMins: etaMinutes,
+      optimizationSummary: {
+        nearestDistKm: distance,
+        topRating: rating,
+        economicalCost: cost,
+        weights: { nearest: '40%', rating: '35%', cost: '25%' }
+      }
     };
   });
 
-  // Sort descending by match score
-  return scoredWorkers.sort((a, b) => b.matchScore - a.matchScore);
+  // Sort descending by highest optimization score (Nearest + Best Rating + Less Cost)
+  return scoredWorkers.sort((a, b) => b.optimizationScore - a.optimizationScore);
 }
 
 /**

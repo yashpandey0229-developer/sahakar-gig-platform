@@ -86,9 +86,9 @@ export function ArchitectureDiagramModal({ isOpen, onClose }) {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                <span className="font-bold text-white block mb-1">Fair-Rotation Algorithm</span>
+                <span className="font-bold text-white block mb-1">Dynamic Optimization Engine</span>
                 <p className="text-[11px] text-slate-300">
-                  Scores workers via: Proximity (40%) + Rotation Opportunity (35%) + Skill Level (15%) + Rating (10%). Prevents star rating monopolies.
+                  Scores workers via: Nearest Distance (40%) + Best Customer Rating (35%) + Less Cost (25%). Dynamically balances ETA, quality & affordability.
                 </p>
               </div>
 
