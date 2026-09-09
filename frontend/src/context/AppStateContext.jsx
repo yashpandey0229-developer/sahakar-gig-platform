@@ -770,26 +770,35 @@ export function AppStateProvider({ children }) {
       })
     );
 
+    // Helper for dynamic sentiment comment if citizen leaves no text
+    const getDynamicPraise = (r) => {
+      if (r === 5) return 'Outstanding doorstep service and transparent cooperative billing.';
+      if (r === 4) return 'Very good doorstep execution and timely arrival.';
+      if (r === 3) return 'Satisfactory service completion at customer premises.';
+      if (r === 2) return 'Service completed with feedback for improvement.';
+      return 'Service completed.';
+    };
+
     // 3. Update Worker Profile (Rating, totalJobsCompleted, and reviews list)
     let updatedWorkerObj = null;
 
     setWorkers(prevWorkers => {
       const updated = prevWorkers.map(w => {
         if (w.id === targetWorkerId || (targetWorkerName && w.name === targetWorkerName)) {
-          const currentTotal = w.totalJobsCompleted || 12;
-          const currentRating = typeof w.rating === 'number' ? w.rating : 4.9;
+          const currentTotal = typeof w.totalJobsCompleted === 'number' && w.totalJobsCompleted > 0 ? w.totalJobsCompleted : 0;
+          const currentRating = typeof w.rating === 'number' ? w.rating : numRating;
           
-          // Weighted average rating calculation
-          const newAvgRating = parseFloat(
-            (((currentRating * currentTotal) + numRating) / (currentTotal + 1)).toFixed(2)
-          );
+          // Truthful rating calculation: If 0 prior completed jobs, rating is exactly the citizen's rating!
+          const newAvgRating = currentTotal === 0
+            ? numRating
+            : parseFloat((((currentRating * currentTotal) + numRating) / (currentTotal + 1)).toFixed(1));
           
           const newReviewItem = {
             id: 'rev-' + Date.now(),
             bookingId,
             customerName,
             rating: numRating,
-            comment: cleanComment || 'Prompt arrival and highly skilled doorstep execution.',
+            comment: cleanComment || getDynamicPraise(numRating),
             date: new Date().toISOString(),
             serviceTitle
           };
@@ -828,8 +837,8 @@ export function AppStateProvider({ children }) {
     }
 
     addNotification(
-      '⭐ 5-Star Rating Submitted & Stamped',
-      `Thank you! You gave ${numRating} stars to ${targetWorkerName}. Their verified cooperative profile rating has been updated to reflect your review.`,
+      `⭐ ${numRating}-Star Citizen Rating Stamped`,
+      `Thank you! You gave ${numRating} stars to ${targetWorkerName}. Their verified cooperative profile now reflects your ${numRating}★ review.`,
       'review'
     );
   };

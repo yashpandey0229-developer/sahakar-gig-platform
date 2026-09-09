@@ -35,9 +35,11 @@ export function WorkerJobHistory({ onOpenJobExecution }) {
     .filter(b => b.status === 'COMPLETED')
     .reduce((acc, b) => acc + (b.breakdown?.workerPayout || Math.round((b.totalAmount || 0) * 0.88)), 0);
 
-  const formattedRating = typeof activeWorker?.rating === 'number' 
-    ? activeWorker.rating.toFixed(2) 
-    : parseFloat(activeWorker?.rating || 4.9).toFixed(2);
+  // Calculate real average rating from completed & rated jobs
+  const ratedJobs = myCompletedJobs.filter(b => typeof b.ratingGiven === 'number' && b.ratingGiven > 0);
+  const formattedRating = ratedJobs.length > 0 
+    ? (ratedJobs.reduce((acc, b) => acc + Number(b.ratingGiven), 0) / ratedJobs.length).toFixed(1) 
+    : (typeof activeWorker?.rating === 'number' ? activeWorker.rating.toFixed(1) : '4.9');
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -99,7 +101,8 @@ export function WorkerJobHistory({ onOpenJobExecution }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {myCompletedJobs.map((booking) => {
-            const ratingScore = booking.ratingGiven || 5;
+            const hasRating = typeof booking.ratingGiven === 'number' && booking.ratingGiven > 0;
+            const ratingScore = hasRating ? Number(booking.ratingGiven) : null;
             const payout = booking.breakdown?.workerPayout || Math.round((booking.totalAmount || 0) * 0.88);
 
             return (
@@ -155,40 +158,72 @@ export function WorkerJobHistory({ onOpenJobExecution }) {
                     </p>
                   </div>
 
-                  {/* 🌟 Customer 5-Star Rating & Praise Card */}
-                  <div className="mt-4 p-3.5 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50/80 border border-amber-300/90 space-y-1.5 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
-                        <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                          Customer Rating: {ratingScore}.0 / 5.0
+                  {/* 🌟 Customer Rating & Feedback Card */}
+                  {hasRating ? (
+                    <div className="mt-4 p-3.5 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50/80 border border-amber-300/90 space-y-1.5 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                          <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                            Customer Rating: {ratingScore}.0 / 5.0 ★
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-black bg-amber-200/80 text-amber-950 px-2 py-0.5 rounded-full border border-amber-300">
+                          ✓ Verified {ratingScore}★ Stamped
                         </span>
                       </div>
-                      <span className="text-[10px] font-black bg-amber-200/80 text-amber-950 px-2 py-0.5 rounded-full border border-amber-300">
-                        {booking.ratingGiven ? '✓ Verified Stamped' : 'Default Rating'}
-                      </span>
-                    </div>
 
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <Star
-                          key={s}
-                          className={`w-4 h-4 ${
-                            s <= ratingScore
-                              ? 'fill-amber-400 text-amber-500'
-                              : 'text-slate-200'
-                          }`}
-                        />
-                      ))}
-                      <span className="text-xs font-black text-slate-800 ml-1">
-                        {ratingScore === 5 ? '⭐⭐⭐⭐⭐ Outstanding' : `${ratingScore} Stars`}
-                      </span>
-                    </div>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`w-4 h-4 ${
+                              s <= ratingScore
+                                ? 'fill-amber-400 text-amber-500'
+                                : 'text-slate-200 fill-slate-100'
+                            }`}
+                          />
+                        ))}
+                        <span className="text-xs font-black text-slate-800 ml-1">
+                          {ratingScore === 5 && '⭐⭐⭐⭐⭐ 5.0 Outstanding (उत्कृष्ट)'}
+                          {ratingScore === 4 && '⭐⭐⭐⭐ 4.0 Very Good (बहुत अच्छा)'}
+                          {ratingScore === 3 && '⭐⭐⭐ 3.0 Good (संतोषजनक)'}
+                          {ratingScore === 2 && '⭐⭐ 2.0 Needs Improvement (सुधार योग्य)'}
+                          {ratingScore === 1 && '⭐ 1.0 Poor (असंतोषजनक)'}
+                        </span>
+                      </div>
 
-                    <p className="text-xs text-slate-700 italic bg-white/90 p-2 rounded-xl border border-amber-200/70 font-medium leading-relaxed">
-                      "{booking.reviewText || 'Prompt arrival, expert technical execution, and 100% transparent billing.'}"
-                    </p>
-                  </div>
+                      <p className="text-xs text-slate-700 italic bg-white/90 p-2 rounded-xl border border-amber-200/70 font-medium leading-relaxed">
+                        "{booking.reviewText || (
+                          ratingScore === 5 ? 'Outstanding doorstep service and transparent cooperative billing.' :
+                          ratingScore === 4 ? 'Very good doorstep work and timely arrival.' :
+                          ratingScore === 3 ? 'Satisfactory service completion at customer premises.' :
+                          ratingScore === 2 ? 'Service completed with feedback for improvement.' :
+                          'Service completed.'
+                        )}"
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-4 p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-slate-500">
+                          <Clock className="w-3.5 h-3.5 text-amber-500" />
+                          <span className="text-xs font-bold text-slate-700">Citizen Doorstep Rating</span>
+                        </div>
+                        <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200">
+                          ⏳ Awaiting Rating
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star key={s} className="w-3.5 h-3.5 text-slate-200 fill-slate-100" />
+                        ))}
+                        <span className="text-[11px] text-slate-400 font-medium ml-1">
+                          Awaiting citizen review on customer app
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Before & After Photos if present */}
                   {(booking.problemPhoto || booking.completionPhoto) && (

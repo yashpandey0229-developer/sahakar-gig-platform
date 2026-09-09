@@ -376,26 +376,32 @@ export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-200/80 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-amber-300">
                     <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                    Verified Rating Stamped
+                    Verified {booking.ratingGiven}.0★ Stamped
                   </span>
-                  <span className="text-xs font-mono font-black text-amber-900">
-                    {booking.ratingGiven}.0 / 5.0
+                  <span className="text-xs font-mono font-black text-amber-900 bg-white px-2.5 py-0.5 rounded-full border border-amber-200">
+                    {booking.ratingGiven}.0 / 5.0 ★
                   </span>
                 </div>
                 
-                <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      className={`w-5 h-5 ${
-                        star <= booking.ratingGiven
-                          ? 'fill-amber-400 text-amber-500'
-                          : 'text-slate-200'
-                      }`}
-                    />
-                  ))}
-                  <span className="text-xs font-black text-slate-800 ml-1.5">
-                    {booking.ratingGiven === 5 ? '⭐⭐⭐⭐⭐ Outstanding (5 Stars)' : `${booking.ratingGiven} Stars Given`}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className={`w-5 h-5 ${
+                          star <= booking.ratingGiven
+                            ? 'fill-amber-400 text-amber-500'
+                            : 'text-slate-200 fill-slate-100'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs font-black text-slate-800 ml-1">
+                    {booking.ratingGiven === 5 && '⭐⭐⭐⭐⭐ 5.0 Outstanding (5 Stars)'}
+                    {booking.ratingGiven === 4 && '⭐⭐⭐⭐ 4.0 Very Good (4 Stars)'}
+                    {booking.ratingGiven === 3 && '⭐⭐⭐ 3.0 Good (3 Stars)'}
+                    {booking.ratingGiven === 2 && '⭐⭐ 2.0 Needs Improvement (2 Stars)'}
+                    {booking.ratingGiven === 1 && '⭐ 1.0 Poor (1 Star)'}
                   </span>
                 </div>
 

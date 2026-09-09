@@ -48,7 +48,7 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet, onOpenHistor
 
   // Doorstep ratings & reviews reflection for this worker
   const completedWorkerBookings = (bookings || []).filter(
-    b => (b.workerId === activeWorker?.id || (b.workerName && b.workerName === activeWorker?.name)) && b.ratingGiven
+    b => (b.workerId === activeWorker?.id || (b.workerName && b.workerName === activeWorker?.name)) && typeof b.ratingGiven === 'number' && b.ratingGiven > 0
   );
   const customWorkerReviews = Array.isArray(activeWorker?.reviews) ? activeWorker.reviews : [];
 
@@ -73,14 +73,22 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet, onOpenHistor
     }
   ];
 
-  // Combine and deduplicate
+  const getDynamicFallbackComment = (r) => {
+    if (r === 5) return 'Outstanding doorstep service and transparent cooperative billing.';
+    if (r === 4) return 'Very good doorstep execution and timely arrival.';
+    if (r === 3) return 'Satisfactory service completion at customer premises.';
+    if (r === 2) return 'Service completed with feedback for improvement.';
+    return 'Doorstep service completed.';
+  };
+
+  // Real reviews from actual completed customer bookings
   const liveReviewsCombined = [
     ...completedWorkerBookings.map(b => ({
       id: 'booking-' + b.id,
       customerName: b.customerName || 'Verified Citizen',
       serviceTitle: b.subServiceName || b.serviceTitle || 'Cooperative Doorstep Gig',
-      rating: b.ratingGiven || 5,
-      comment: b.reviewText || 'Excellent service and transparent cooperative billing.',
+      rating: Number(b.ratingGiven),
+      comment: b.reviewText || getDynamicFallbackComment(Number(b.ratingGiven)),
       date: new Date(b.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
       isVerified: true,
       isNew: true
@@ -96,14 +104,15 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet, onOpenHistor
     }
   });
 
-  const displayReviews = uniqueReviewsMap.size > 0 
-    ? Array.from(uniqueReviewsMap.values()) 
-    : defaultSeedReviews;
+  const displayReviews = completedWorkerBookings.length > 0
+    ? Array.from(uniqueReviewsMap.values())
+    : (uniqueReviewsMap.size > 0 ? Array.from(uniqueReviewsMap.values()) : defaultSeedReviews);
 
-  const currentWorkerRatingNum = typeof activeWorker?.rating === 'number' 
-    ? activeWorker.rating 
-    : parseFloat(activeWorker?.rating || 4.9);
-  const formattedRating = currentWorkerRatingNum.toFixed(2);
+  const ratedWorkerBookings = completedWorkerBookings.filter(b => typeof b.ratingGiven === 'number' && b.ratingGiven > 0);
+  const currentWorkerRatingNum = ratedWorkerBookings.length > 0
+    ? (ratedWorkerBookings.reduce((acc, b) => acc + Number(b.ratingGiven), 0) / ratedWorkerBookings.length)
+    : (typeof activeWorker?.rating === 'number' ? activeWorker.rating : 4.9);
+  const formattedRating = currentWorkerRatingNum.toFixed(1);
 
   const handleReadoutGig = (booking) => {
     speechService.playChime('alert');
@@ -526,14 +535,14 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet, onOpenHistor
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-lg sm:text-xl font-black text-slate-900 font-['Outfit']">
-                  Verified Citizen Ratings & 5-Star Reviews
+                  Verified Citizen Ratings & Reviews
                 </h3>
                 <span className="text-[10px] bg-emerald-100 text-emerald-800 font-black px-2.5 py-0.5 rounded-full border border-emerald-300 uppercase">
                   100% Anti-Fraud
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                नागरिकों द्वारा दी गई लाइव 5-स्टार रेटिंग एवं समीक्षाएं • Stamped with doorstep OTP verification
+                नागरिकों द्वारा दी गई लाइव रेटिंग एवं समीक्षाएं • Stamped with doorstep OTP verification
               </p>
             </div>
           </div>
@@ -636,14 +645,14 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet, onOpenHistor
                         <Star
                           key={s}
                           className={`w-3.5 h-3.5 ${
-                            s <= (rev.rating || 5)
+                            s <= Number(rev.rating || 5)
                               ? 'fill-amber-400 text-amber-500'
-                              : 'text-slate-200'
+                              : 'text-slate-200 fill-slate-100'
                           }`}
                         />
                       ))}
                       <span className="text-xs font-black text-slate-800 ml-1">
-                        {rev.rating || 5}.0
+                        {Number(rev.rating || 5).toFixed(1)} ★
                       </span>
                     </div>
                   </div>

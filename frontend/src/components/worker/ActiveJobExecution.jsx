@@ -448,15 +448,15 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
                 Payment settled instantly with 88% direct retention.
               </p>
 
-              {/* 🌟 Customer 5-Star Rating & Praise Live Reflection */}
+              {/* 🌟 Customer Rating & Feedback Live Reflection */}
               <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-50 via-white to-orange-50 border-2 border-amber-300 text-left space-y-2.5 shadow-sm animate-in fade-in">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-200/80 px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1">
                     <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                    Customer Doorstep Rating (नागरिक की रेटिंग)
+                    {currentJob.ratingGiven ? `Customer Review (${currentJob.ratingGiven}★)` : 'Customer Doorstep Rating (नागरिक की रेटिंग)'}
                   </span>
                   {currentJob.ratingGiven ? (
-                    <span className="text-xs font-mono font-black text-amber-900">
+                    <span className="text-xs font-mono font-black text-amber-900 bg-white px-2.5 py-0.5 rounded-full border border-amber-200 shadow-xs">
                       {currentJob.ratingGiven}.0 / 5.0 ★
                     </span>
                   ) : (
@@ -469,19 +469,25 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
 
                 {currentJob.ratingGiven ? (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          className={`w-5 h-5 ${
-                            star <= currentJob.ratingGiven
-                              ? 'fill-amber-400 text-amber-500'
-                              : 'text-slate-200'
-                          }`}
-                        />
-                      ))}
-                      <span className="text-xs font-black text-slate-800 ml-1.5">
-                        {currentJob.ratingGiven === 5 ? '⭐⭐⭐⭐⭐ Outstanding (5 Stars)' : `${currentJob.ratingGiven} Stars Given`}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`w-5 h-5 ${
+                              star <= currentJob.ratingGiven
+                                ? 'fill-amber-400 text-amber-500'
+                                : 'text-slate-200 fill-slate-100'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-xs font-black text-slate-800 ml-1">
+                        {currentJob.ratingGiven === 5 && '⭐⭐⭐⭐⭐ 5.0 Outstanding (उत्कृष्ट कार्य)'}
+                        {currentJob.ratingGiven === 4 && '⭐⭐⭐⭐ 4.0 Very Good (बहुत अच्छा कार्य)'}
+                        {currentJob.ratingGiven === 3 && '⭐⭐⭐ 3.0 Good (संतोषजनक कार्य)'}
+                        {currentJob.ratingGiven === 2 && '⭐⭐ 2.0 Needs Improvement (सुधार योग्य)'}
+                        {currentJob.ratingGiven === 1 && '⭐ 1.0 Poor (असंतोषजनक कार्य)'}
                       </span>
                     </div>
 
@@ -490,14 +496,18 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
                         "{currentJob.reviewText}"
                       </p>
                     ) : (
-                      <p className="text-xs text-slate-600 italic">
-                        Customer gave 5 stars for high quality doorstep service and transparent cooperative billing.
+                      <p className="text-xs text-slate-600 italic bg-white/80 p-2 rounded-xl border border-amber-200/60">
+                        {currentJob.ratingGiven === 5 && 'Customer gave 5.0 stars for outstanding doorstep service and cooperative billing.'}
+                        {currentJob.ratingGiven === 4 && 'Customer gave 4.0 stars for very good doorstep work and timely arrival.'}
+                        {currentJob.ratingGiven === 3 && 'Customer gave 3.0 stars for satisfactory doorstep service.'}
+                        {currentJob.ratingGiven === 2 && 'Customer gave 2.0 stars with feedback for service improvement.'}
+                        {currentJob.ratingGiven === 1 && 'Customer gave 1.0 star rating.'}
                       </p>
                     )}
 
                     <div className="flex items-center gap-1.5 text-[11px] text-emerald-800 font-bold pt-1 border-t border-amber-200/70">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Credited live to your cooperative profile & rotation score</span>
+                      <span>Credited live to your cooperative profile & rotation score ({currentJob.ratingGiven}★ verified)</span>
                     </div>
                   </div>
                 ) : (
