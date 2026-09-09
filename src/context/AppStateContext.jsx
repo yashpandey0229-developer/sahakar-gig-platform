@@ -336,10 +336,36 @@ export function AppStateProvider({ children }) {
     initFromApi();
   }, []);
 
-  // Background Live Heartbeat: Polls every 3.5 seconds to synchronize cross-device actions
+  // 1. Cross-tab real-time sync via window storage event (Syncs instantly across tabs)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'sahakar_bookings' && e.newValue) {
+        try {
+          const updatedBookings = JSON.parse(e.newValue);
+          if (Array.isArray(updatedBookings) && updatedBookings.length > 0) {
+            setBookingsState(updatedBookings);
+          }
+        } catch (err) {}
+      }
+      if (e.key === 'sahakar_custom_workers' && e.newValue) {
+        try {
+          const updatedWorkers = JSON.parse(e.newValue);
+          if (Array.isArray(updatedWorkers) && updatedWorkers.length > 0) {
+            setWorkers(updatedWorkers);
+          }
+        } catch (err) {}
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // 2. Background Live Heartbeat: Polls every 2.5 seconds to synchronize cross-device actions
   useEffect(() => {
     const syncTimer = setInterval(async () => {
       try {
+        // A. Poll and sync Bookings (including ratingGiven and reviewText from customer)
         const remoteBookings = await api.getBookings();
         if (remoteBookings && Array.isArray(remoteBookings) && remoteBookings.length > 0) {
           setBookings(prev => {
@@ -355,7 +381,10 @@ export function AppStateProvider({ children }) {
               if (
                 local.status !== remote.status ||
                 local.workerId !== remote.workerId ||
-                local.etaMins !== remote.etaMins
+                local.etaMins !== remote.etaMins ||
+                local.ratingGiven !== remote.ratingGiven ||
+                local.reviewText !== remote.reviewText ||
+                local.completionPhoto !== remote.completionPhoto
               ) {
                 hasChanged = true;
                 return { ...local, ...remote };
@@ -372,8 +401,30 @@ export function AppStateProvider({ children }) {
             return hasChanged ? merged : prev;
           });
         }
+
+        // B. Poll and sync Workers (including average rating, reviews, and completed gigs)
+        const remoteWorkers = await api.getWorkers();
+        if (remoteWorkers && Array.isArray(remoteWorkers) && remoteWorkers.length > 0) {
+          setWorkers(prevWorkers => {
+            let workersChanged = false;
+            const mergedWorkers = prevWorkers.map(localW => {
+              const remoteW = remoteWorkers.find(rw => rw.id === localW.id);
+              if (!remoteW) return localW;
+              if (
+                localW.rating !== remoteW.rating ||
+                localW.totalJobsCompleted !== remoteW.totalJobsCompleted ||
+                (remoteW.reviews && remoteW.reviews.length !== (localW.reviews?.length || 0))
+              ) {
+                workersChanged = true;
+                return { ...localW, ...remoteW };
+              }
+              return localW;
+            });
+            return workersChanged ? mergedWorkers : prevWorkers;
+          });
+        }
       } catch (e) {}
-    }, 3500);
+    }, 2500);
 
     return () => clearInterval(syncTimer);
   }, []);
@@ -748,6 +799,17 @@ export function AppStateProvider({ children }) {
     const numRating = Math.max(1, Math.min(5, Number(rating) || 5));
     const cleanComment = (reviewText || '').trim();
 
+    // Helper for dynamic sentiment comment if citizen leaves no text
+    const getDynamicPraise = (r) => {
+      if (r === 5) return 'Outstanding doorstep service and transparent cooperative billing.';
+      if (r === 4) return 'Very good doorstep execution and timely arrival.';
+      if (r === 3) return 'Satisfactory service completion at customer premises.';
+      if (r === 2) return 'Service completed with feedback for improvement.';
+      return 'Doorstep service completed.';
+    };
+
+    const finalComment = cleanComment || getDynamicPraise(numRating);
+
     // 1. Locate the target booking
     const booking = bookings.find(b => b.id === bookingId);
     const targetWorkerId = booking?.workerId || activeWorkerId || 'w-101';
@@ -762,7 +824,7 @@ export function AppStateProvider({ children }) {
           return {
             ...b,
             ratingGiven: numRating,
-            reviewText: cleanComment,
+            reviewText: finalComment,
             status: 'COMPLETED'
           };
         }
@@ -770,21 +832,14 @@ export function AppStateProvider({ children }) {
       })
     );
 
-    // Helper for dynamic sentiment comment if citizen leaves no text
-    const getDynamicPraise = (r) => {
-      if (r === 5) return 'Outstanding doorstep service and transparent cooperative billing.';
-      if (r === 4) return 'Very good doorstep execution and timely arrival.';
-      if (r === 3) return 'Satisfactory service completion at customer premises.';
-      if (r === 2) return 'Service completed with feedback for improvement.';
-      return 'Service completed.';
-    };
-
     // 3. Update Worker Profile (Rating, totalJobsCompleted, and reviews list)
     let updatedWorkerObj = null;
 
     setWorkers(prevWorkers => {
       const updated = prevWorkers.map(w => {
-        if (w.id === targetWorkerId || (targetWorkerName && w.name === targetWorkerName)) {
+        const isMatch = w.id === targetWorkerId || 
+          (targetWorkerName && w.name && w.name.toLowerCase().trim() === targetWorkerName.toLowerCase().trim());
+        if (isMatch) {
           const currentTotal = typeof w.totalJobsCompleted === 'number' && w.totalJobsCompleted > 0 ? w.totalJobsCompleted : 0;
           const currentRating = typeof w.rating === 'number' ? w.rating : numRating;
           
@@ -798,7 +853,7 @@ export function AppStateProvider({ children }) {
             bookingId,
             customerName,
             rating: numRating,
-            comment: cleanComment || getDynamicPraise(numRating),
+            comment: finalComment,
             date: new Date().toISOString(),
             serviceTitle
           };

@@ -59,6 +59,14 @@ export function CustomerPortal() {
     });
   }, [customer]);
 
+  // Robust unrated completed order resolver: Always prompts citizen to rate their artisan
+  const unratedBooking = (activeBooking && activeBooking.status === 'COMPLETED' && !activeBooking.ratingGiven ? activeBooking : null) ||
+    (bookings || []).find(b => 
+      (b.customerId === customer?.id || (customer?.email && b.customerEmail && b.customerEmail.toLowerCase() === customer.email.toLowerCase())) &&
+      b.status === 'COMPLETED' &&
+      !b.ratingGiven
+    );
+
   const handleOpenPriceModal = (service, amount) => {
     setPriceModalConfig({ isOpen: true, service, amount });
   };
@@ -208,19 +216,19 @@ export function CustomerPortal() {
       )}
 
       {/* Floating Completed Order - Rate Artisan Prompt Banner */}
-      {activeBooking && activeBooking.status === 'COMPLETED' && !activeBooking.ratingGiven && (
+      {unratedBooking && (
         <div 
-          onClick={() => setReviewBooking(activeBooking)}
+          onClick={() => setReviewBooking(unratedBooking)}
           className="cursor-pointer bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white rounded-2xl p-4 px-6 shadow-xl flex items-center justify-between gap-4 animate-in slide-in-from-top-2 hover:scale-[1.01] transition border-2 border-amber-300"
         >
           <div className="flex items-center gap-3">
             <span className="w-3 h-3 rounded-full bg-white animate-ping" />
             <div>
               <span className="text-[10px] font-mono uppercase tracking-widest text-amber-100 font-bold block">
-                🎉 SERVICE COMPLETED · AWAITING YOUR RATING
+                🎉 SERVICE COMPLETED · PLEASE RATE YOUR ARTISAN
               </span>
               <h4 className="text-sm font-black text-white">
-                {activeBooking.subServiceName || activeBooking.serviceTitle} · Expert: {activeBooking.workerName || 'Cooperative Artisan'}
+                {unratedBooking.subServiceName || unratedBooking.serviceTitle} · Expert: {unratedBooking.workerName || 'Cooperative Artisan'}
               </h4>
             </div>
           </div>

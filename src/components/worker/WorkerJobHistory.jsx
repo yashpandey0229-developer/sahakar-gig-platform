@@ -12,13 +12,13 @@ import {
   Lock,
   DollarSign,
   UserCheck,
-  Camera
+  History
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 import { CooperativeReceiptModal } from '../common/CooperativeReceiptModal';
 
 export function WorkerJobHistory({ onOpenJobExecution }) {
-  const { bookings, activeWorker, language, submitReview } = useAppState();
+  const { bookings, activeWorker, language } = useAppState();
   const [selectedBookingForReceipt, setSelectedBookingForReceipt] = useState(null);
 
   // Strict Worker Isolation: Only show jobs completed by THIS logged-in worker
@@ -30,146 +30,119 @@ export function WorkerJobHistory({ onOpenJobExecution }) {
     return isThisWorker && (b.status === 'COMPLETED' || b.status === 'CANCELLED');
   });
 
-  // Calculate total earnings across completed jobs
-  const totalEarned = myCompletedJobs
-    .filter(b => b.status === 'COMPLETED')
-    .reduce((acc, b) => acc + (b.breakdown?.workerPayout || Math.round((b.totalAmount || 0) * 0.88)), 0);
-
-  // Calculate real average rating from completed & rated jobs
   const ratedJobs = myCompletedJobs.filter(b => typeof b.ratingGiven === 'number' && b.ratingGiven > 0);
-  const formattedRating = ratedJobs.length > 0 
+  const averageRating = ratedJobs.length > 0 
     ? (ratedJobs.reduce((acc, b) => acc + Number(b.ratingGiven), 0) / ratedJobs.length).toFixed(1) 
-    : (typeof activeWorker?.rating === 'number' ? activeWorker.rating.toFixed(1) : '4.9');
+    : (typeof activeWorker?.rating === 'number' ? activeWorker.rating.toFixed(1) : '5.0');
 
   return (
-    <div className="space-y-6 animate-in fade-in">
-      
-      {/* Top Banner: Authenticated Worker Header & Privacy Isolation */}
-      <div className="bg-gradient-to-r from-amber-50 via-white to-orange-50 border-2 border-amber-300 rounded-3xl p-6 sm:p-7 shadow-sm">
+    <div className="space-y-6">
+      {/* Header Banner */}
+      <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <img
-              src={activeWorker?.avatar || 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=150'}
-              alt={activeWorker?.name}
-              className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500 shadow-md"
-            />
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
+              <History className="w-6 h-6" />
+            </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 font-['Outfit']">
-                  {activeWorker?.name}'s Completed Jobs & Ratings
+                <h2 className="text-xl font-black text-slate-900 font-['Outfit']">
+                  My Completed Work & Payout History
                 </h2>
-                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-mono font-black px-2.5 py-0.5 rounded-full border border-emerald-300">
-                  VERIFIED LEDGER
+                <span className="text-[11px] font-mono font-bold bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full border border-amber-300">
+                  {myCompletedJobs.length} Gigs
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5 font-medium">
-                <Lock className="w-3.5 h-3.5 text-amber-600" />
-                <span>Private Job History • Visible <strong>ONLY to you</strong> (ID: {activeWorker?.cooperativeMemberId || 'COOP-MH-4819'})</span>
+              <p className="text-xs text-slate-500 font-medium">
+                Verified work completed by {activeWorker?.name || 'Partner'} • 88% Direct Payout Audited
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="px-4 py-2 rounded-2xl bg-white border border-amber-200 shadow-xs text-right">
-              <span className="text-[10px] text-slate-500 font-bold block uppercase">Net 88% Earnings</span>
-              <span className="text-lg font-black text-emerald-700">₹{totalEarned}</span>
-            </div>
-            <div className="px-4 py-2 rounded-2xl bg-white border border-amber-200 shadow-xs text-right">
-              <span className="text-[10px] text-slate-500 font-bold block uppercase">Citizen Rating</span>
-              <span className="text-lg font-black text-amber-900 flex items-center gap-1">
+          <div className="flex items-center gap-3">
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-2 text-center">
+              <span className="text-[10px] font-bold text-amber-800 uppercase block">Average Rating</span>
+              <div className="flex items-center justify-center gap-1 font-black text-sm text-amber-900">
                 <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
-                {formattedRating} ★
-              </span>
+                <span>{averageRating} / 5.0</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Empty State */}
+      {/* Jobs List */}
       {myCompletedJobs.length === 0 ? (
-        <div className="p-16 text-center bg-white border-2 border-dashed border-slate-200 rounded-3xl shadow-sm space-y-3">
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-2xl shadow-inner">
-            🧰
+        <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center space-y-3">
+          <div className="w-14 h-14 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center text-2xl">
+            📋
           </div>
-          <h3 className="text-base font-bold text-slate-900 font-['Outfit']">
-            No Completed Jobs Yet for {activeWorker?.name}
-          </h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-            You are logged in as <strong className="text-slate-800">{activeWorker?.name}</strong>. Accept and complete service dispatches on your 10km radar to build your verified 5-star history and patronage dividends!
+          <h3 className="text-sm font-bold text-slate-800">No completed jobs yet</h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            Jobs you complete with citizen start & end OTPs will appear here along with live customer ratings and instant wallet credits.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
           {myCompletedJobs.map((booking) => {
             const hasRating = typeof booking.ratingGiven === 'number' && booking.ratingGiven > 0;
             const ratingScore = hasRating ? Number(booking.ratingGiven) : null;
-            const payout = booking.breakdown?.workerPayout || Math.round((booking.totalAmount || 0) * 0.88);
+            const payoutAmount = booking.breakdown?.workerPayout || Math.round((booking.totalAmount || 0) * 0.88);
 
             return (
-              <div
+              <div 
                 key={booking.id}
-                className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col justify-between hover:shadow-md transition space-y-4"
+                className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-xs hover:border-amber-300 transition space-y-4"
               >
-                <div>
-                  {/* Top Bar */}
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-black text-amber-800">
-                        #{booking.id}
-                      </span>
-                      <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 font-bold">
-                        OTP Verified ({booking.endOtp || '7721'})
-                      </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 font-bold flex items-center justify-center border border-emerald-200">
+                      ✓
                     </div>
-
-                    <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase ${
-                      booking.status === 'COMPLETED'
-                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                        : 'bg-rose-100 text-rose-800 border border-rose-300'
-                    }`}>
-                      {booking.status}
-                    </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black text-slate-900">
+                          {booking.subServiceName || booking.serviceTitle}
+                        </h4>
+                        <span className="text-[10px] font-mono font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                          #{booking.id}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
+                        <span>Citizen: <strong>{booking.customerName || 'Verified Citizen'}</strong></span>
+                        <span>•</span>
+                        <span>{booking.createdAt ? new Date(booking.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'Recently'}</span>
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Service & Citizen Details */}
-                  <div className="mt-3">
-                    <h3 className="text-lg font-black text-slate-900 font-['Outfit']">
-                      {booking.subServiceName || booking.serviceTitle}
-                    </h3>
-                    
-                    <p className="text-xs text-slate-600 mt-1 flex items-center gap-1 font-medium">
-                      <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>{booking.customerAddress}</span>
-                    </p>
-                    
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Citizen: <strong className="text-slate-800">{booking.customerName}</strong> ({booking.customerPhone})
-                    </p>
-
-                    <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 font-medium">
-                      <Clock className="w-3 h-3 text-slate-400" />
-                      {new Date(booking.createdAt || Date.now()).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
+                  <div className="flex items-center gap-3 self-end sm:self-auto">
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 block">Your 88% Earning</span>
+                      <span className="text-base font-black text-emerald-700">₹{payoutAmount}</span>
+                    </div>
+                    <button
+                      onClick={() => setSelectedBookingForReceipt(booking)}
+                      className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                      title="View & Download 88-7-5 Tax Receipt"
+                    >
+                      <Receipt className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Receipt (PDF)</span>
+                    </button>
                   </div>
+                </div>
 
-                  {/* 🌟 Customer Rating & Feedback Card */}
+                {/* Rating Display Section */}
+                <div className="pt-1">
                   {hasRating ? (
-                    <div className="mt-4 p-3.5 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50/80 border border-amber-300/90 space-y-1.5 shadow-xs">
+                    <div className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-50 via-white to-orange-50 border border-amber-200 space-y-2">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
-                          <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                            Customer Rating: {ratingScore}.0 / 5.0 ★
-                          </span>
-                        </div>
-                        <span className="text-[10px] font-black bg-amber-200/80 text-amber-950 px-2 py-0.5 rounded-full border border-amber-300">
-                          ✓ Verified {ratingScore}★ Stamped
+                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-full border border-amber-300 flex items-center gap-1">
+                          <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                          <span>Customer Rating ({ratingScore}★)</span>
+                        </span>
+                        <span className="text-xs font-mono font-black text-amber-900 bg-white px-2 py-0.5 rounded-full border border-amber-200">
+                          {ratingScore}.0 / 5.0 ★
                         </span>
                       </div>
 
@@ -193,74 +166,31 @@ export function WorkerJobHistory({ onOpenJobExecution }) {
                         </span>
                       </div>
 
+                      {booking.reviewText && (
+                        <p className="text-xs text-slate-700 bg-white/90 p-2 rounded-xl border border-amber-200 italic">
+                          "{booking.reviewText}"
+                        </p>
+                      )}
+
                       <div className="flex items-center justify-between pt-1 border-t border-amber-200/70 text-[11px]">
-                        <span className="text-emerald-800 font-bold">Verified on worker profile</span>
-                        <div className="flex items-center gap-1">
-                          <span className="text-[10px] text-slate-500 font-medium">Test:</span>
-                          <button
-                            type="button"
-                            onClick={() => submitReview(booking.id, 3, 'Satisfactory doorstep service completion.')}
-                            className={`px-2 py-0.5 rounded-md font-bold text-[10px] transition ${
-                              ratingScore === 3 ? 'bg-amber-600 text-white' : 'bg-white border border-amber-300 text-amber-900 hover:bg-amber-50'
-                            }`}
-                          >
-                            3★
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => submitReview(booking.id, 5, 'Outstanding doorstep service and transparent cooperative billing.')}
-                            className={`px-2 py-0.5 rounded-md font-bold text-[10px] transition ${
-                              ratingScore === 5 ? 'bg-amber-600 text-white' : 'bg-white border border-amber-300 text-amber-900 hover:bg-amber-50'
-                            }`}
-                          >
-                            5★
-                          </button>
-                        </div>
+                        <span className="text-emerald-800 font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Customer Rating Verified ({ratingScore}★)</span>
+                        </span>
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-4 p-3 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-amber-950 font-bold text-xs">
-                          <Clock className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Record Citizen Rating (रेटिंग दर्ज करें):</span>
-                        </div>
-                        <span className="text-[10px] font-bold bg-amber-200 text-amber-950 px-2 py-0.5 rounded-full border border-amber-300">
-                          1-Click Stamp
+                    <div className="mt-2 p-3 rounded-2xl bg-amber-50/70 border border-amber-200 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-amber-950 font-bold text-xs">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                         </span>
+                        <span>Awaiting Citizen Rating (नागरिक की रेटिंग प्रतीक्षित)</span>
                       </div>
-
-                      <div className="grid grid-cols-5 gap-1.5 pt-0.5">
-                        {[1, 2, 3, 4, 5].map((stars) => (
-                          <button
-                            key={stars}
-                            type="button"
-                            onClick={() => {
-                              submitReview(
-                                booking.id,
-                                stars,
-                                stars === 5 ? 'Outstanding doorstep service and transparent cooperative billing.' :
-                                stars === 4 ? 'Very good doorstep work and timely arrival.' :
-                                stars === 3 ? 'Satisfactory service completion at customer premises.' :
-                                stars === 2 ? 'Service completed with feedback for improvement.' :
-                                'Service completed.'
-                              );
-                            }}
-                            className={`py-1.5 px-1 rounded-xl text-xs font-black flex items-center justify-center gap-1 transition shadow-xs border ${
-                              stars === 3
-                                ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-sm ring-2 ring-amber-300'
-                                : 'bg-white hover:bg-amber-100 text-slate-800 border-amber-300 hover:border-amber-400'
-                            }`}
-                          >
-                            <Star className={`w-3 h-3 ${stars === 3 ? 'fill-white text-white' : 'fill-amber-400 text-amber-500'}`} />
-                            <span>{stars}★</span>
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="text-[10px] text-slate-500 text-center font-medium">
-                        Click 3★ to test 3-star rating, or 5★ for full rating
-                      </div>
+                      <span className="text-[10px] font-mono font-bold bg-amber-200/70 text-amber-950 px-2.5 py-0.5 rounded-full border border-amber-300">
+                        Syncs Live
+                      </span>
                     </div>
                   )}
 
