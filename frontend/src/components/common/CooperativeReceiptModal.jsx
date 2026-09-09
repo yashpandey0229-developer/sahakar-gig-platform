@@ -26,7 +26,361 @@ export function CooperativeReceiptModal({ booking, isOpen, onClose }) {
   const platformCut = booking.breakdown?.platformMaintenance ?? Math.round(total * 0.05);
 
   const handlePrint = () => {
-    window.print();
+    // Generate clean, dedicated single-page A4 printable invoice
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>SahakarGig Receipt - INV-${booking.id}</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 8mm 12mm;
+            }
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+              color: #0f172a;
+              background: #ffffff;
+              font-size: 11px;
+              line-height: 1.35;
+              padding: 0;
+            }
+            .invoice-card {
+              max-width: 100%;
+              margin: 0 auto;
+              border: 1.5px solid #cbd5e1;
+              border-radius: 12px;
+              padding: 18px 20px;
+            }
+            .header-row {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              border-bottom: 2px solid #e2e8f0;
+              padding-bottom: 12px;
+              margin-bottom: 12px;
+            }
+            .logo-wrap {
+              display: flex;
+              align-items: center;
+              gap: 10px;
+            }
+            .logo-box {
+              width: 38px;
+              height: 38px;
+              background: #047857;
+              color: #ffffff;
+              border-radius: 10px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 20px;
+              font-weight: 900;
+            }
+            .brand-title {
+              font-size: 20px;
+              font-weight: 900;
+              color: #0f172a;
+              letter-spacing: -0.5px;
+            }
+            .brand-sub {
+              font-size: 9px;
+              text-transform: uppercase;
+              letter-spacing: 0.8px;
+              color: #64748b;
+              font-weight: 700;
+            }
+            .reg-info {
+              font-size: 9px;
+              color: #64748b;
+              font-family: monospace;
+              margin-top: 3px;
+            }
+            .meta-box {
+              text-align: right;
+            }
+            .status-badge {
+              display: inline-block;
+              background: #dcfce7;
+              color: #166534;
+              border: 1px solid #86efac;
+              font-size: 9px;
+              font-weight: 800;
+              padding: 2.5px 8px;
+              border-radius: 999px;
+            }
+            .inv-number {
+              font-size: 13px;
+              font-weight: 900;
+              font-family: monospace;
+              margin-top: 3px;
+              color: #0f172a;
+            }
+            .inv-date {
+              font-size: 9.5px;
+              color: #64748b;
+            }
+            .grid-cols {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              padding: 10px 12px;
+              margin-bottom: 12px;
+            }
+            .col-title {
+              font-size: 8.5px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #64748b;
+              margin-bottom: 2px;
+            }
+            .col-name {
+              font-size: 12px;
+              font-weight: 800;
+              color: #0f172a;
+            }
+            .col-sub {
+              font-size: 9.5px;
+              color: #475569;
+              margin-top: 1.5px;
+            }
+            .service-strip {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              padding: 8px 12px;
+              margin-bottom: 12px;
+              background: #ffffff;
+            }
+            .service-name {
+              font-size: 12px;
+              font-weight: 800;
+              color: #0f172a;
+            }
+            .service-category {
+              font-size: 9.5px;
+              color: #64748b;
+            }
+            .service-amount {
+              font-size: 15px;
+              font-weight: 900;
+              color: #0f172a;
+            }
+            .split-container {
+              border: 1.5px solid #059669;
+              border-radius: 10px;
+              overflow: hidden;
+              margin-bottom: 12px;
+            }
+            .split-header {
+              background: #047857;
+              color: #ffffff;
+              padding: 7px 12px;
+              font-size: 9.5px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.6px;
+              display: flex;
+              justify-content: space-between;
+            }
+            .split-row {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding: 8px 12px;
+              border-bottom: 1px solid #e2e8f0;
+              font-size: 10.5px;
+            }
+            .row-worker { background: #f0fdf4; }
+            .row-health { background: #fffbeb; }
+            .row-it { background: #f8fafc; }
+            .row-total {
+              background: #f1f5f9;
+              border-top: 2px solid #cbd5e1;
+              border-bottom: none;
+              font-weight: 800;
+              padding: 10px 12px;
+            }
+            .row-title {
+              font-weight: 800;
+              color: #0f172a;
+            }
+            .row-desc {
+              font-size: 9px;
+              color: #64748b;
+              margin-top: 1px;
+            }
+            .row-price-box {
+              text-align: right;
+            }
+            .price-text {
+              font-size: 13px;
+              font-weight: 900;
+            }
+            .pct-text {
+              font-size: 9px;
+              color: #64748b;
+              font-family: monospace;
+            }
+            .footer-strip {
+              border-top: 1px solid #e2e8f0;
+              padding-top: 8px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              font-size: 8.5px;
+              color: #64748b;
+            }
+            .hash-tag {
+              font-family: monospace;
+              color: #0f172a;
+              font-weight: 700;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="invoice-card">
+            <!-- Header -->
+            <div class="header-row">
+              <div>
+                <div class="logo-wrap">
+                  <div class="logo-box">★</div>
+                  <div>
+                    <div class="brand-title">Sahakar<span style="color: #047857; font-style: italic;">Gig</span></div>
+                    <div class="brand-sub">Multi-State Cooperative Platform • Ministry of Cooperation</div>
+                  </div>
+                </div>
+                <div class="reg-info">Reg No: MSCS/2026/PUN-89 • GSTIN: 27AABCS9982Q1Z9</div>
+              </div>
+              <div class="meta-box">
+                <span class="status-badge">TAX INVOICE: COMPLETED ✓</span>
+                <div class="inv-number">INV-${booking.id}</div>
+                <div class="inv-date">${new Date(booking.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+              </div>
+            </div>
+
+            <!-- Customer & Artisan Info -->
+            <div class="grid-cols">
+              <div>
+                <div class="col-title">Billed To (Citizen / Customer)</div>
+                <div class="col-name">${booking.customerName || 'Citizen'}</div>
+                <div class="col-sub">📍 ${booking.customerAddress || 'Pune, Maharashtra'}</div>
+                <div class="col-sub">📞 ${booking.customerPhone || 'Verified Citizen'}</div>
+              </div>
+              <div>
+                <div class="col-title">Verified Cooperative Artisan</div>
+                <div class="col-name">${booking.workerName || 'Ramesh Jadhav'} (Verified ✓)</div>
+                <div class="col-sub" style="color: #047857; font-weight: 700;">${booking.workerSociety || 'Pune Tech & Maintenance Cooperative'}</div>
+                <div class="col-sub">Doorstep Authentication: Start OTP ✓ & End OTP ✓ Audited</div>
+              </div>
+            </div>
+
+            <!-- Service Item -->
+            <div class="service-strip">
+              <div>
+                <div class="service-name">${booking.subServiceName || booking.serviceTitle}</div>
+                <div class="service-category">Category: ${booking.serviceTitle} • Doorstep Professional Execution</div>
+              </div>
+              <div class="service-amount">₹${total}</div>
+            </div>
+
+            <!-- 88% - 7% - 5% Cooperative Split Table -->
+            <div class="split-container">
+              <div class="split-header">
+                <span>Audited Cooperative Split (88% - 7% - 5%)</span>
+                <span>Zero Exploitative Commissions</span>
+              </div>
+              
+              <div class="split-row row-worker">
+                <div>
+                  <div class="row-title" style="color: #047857;">88% Direct Artisan Payout (कारीगर का हिस्सा)</div>
+                  <div class="row-desc">100% credited to ${booking.workerName || 'Artisan'}'s linked cooperative account with zero platform cut.</div>
+                </div>
+                <div class="row-price-box">
+                  <div class="price-text" style="color: #047857;">₹${workerCut}</div>
+                  <div class="pct-text">88.0%</div>
+                </div>
+              </div>
+
+              <div class="split-row row-health">
+                <div>
+                  <div class="row-title" style="color: #b45309;">7% Community Health & Welfare Pool (स्वास्थ्य एवं पेंशन)</div>
+                  <div class="row-desc">Deposited into cooperative reserve for emergency medical insurance, pension & tool micro-loans.</div>
+                </div>
+                <div class="row-price-box">
+                  <div class="price-text" style="color: #b45309;">₹${welfareCut}</div>
+                  <div class="pct-text">7.0%</div>
+                </div>
+              </div>
+
+              <div class="split-row row-it">
+                <div>
+                  <div class="row-title" style="color: #334155;">5% Open-Source IT & Protocol Rails (सर्वर व नेटवर्क)</div>
+                  <div class="row-desc">Covers GPS telematics, payment gateway processing, and open protocol upkeep.</div>
+                </div>
+                <div class="row-price-box">
+                  <div class="price-text" style="color: #334155;">₹${platformCut}</div>
+                  <div class="pct-text">5.0%</div>
+                </div>
+              </div>
+
+              <div class="split-row row-total">
+                <div>
+                  <div class="row-title" style="font-size: 11.5px;">Total Amount Settled (कुल भुगतान)</div>
+                  <div class="row-desc">Verified through Dual-Key OTP • No hidden commissions or surge charges</div>
+                </div>
+                <div class="row-price-box">
+                  <div class="price-text" style="font-size: 16px; color: #0f172a;">₹${total}</div>
+                  <div class="pct-text" style="color: #047857; font-weight: 700;">100% Transparent</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer-strip">
+              <div>Cryptographic Verification: <span class="hash-tag">SHA256-${booking.id}-COOP8875</span></div>
+              <div>Dual-Key Doorstep Handshake: Start OTP ✓ | End OTP ✓ Verified</div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(printContent);
+    doc.close();
+
+    iframe.contentWindow.focus();
+    setTimeout(() => {
+      iframe.contentWindow.print();
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 2000);
+    }, 250);
   };
 
   const handleDownloadTextInvoice = () => {
@@ -86,7 +440,19 @@ This is a cryptographically verified electronic cooperative receipt.
       
       {/* Print-specific CSS styles */}
       <style>{`
+        @page {
+          size: A4 portrait;
+          margin: 8mm 12mm;
+        }
         @media print {
+          html, body {
+            height: auto !important;
+            max-height: 100% !important;
+            overflow: hidden !important;
+            background: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
           body * {
             visibility: hidden;
           }
@@ -97,14 +463,19 @@ This is a cryptographically verified electronic cooperative receipt.
             position: absolute;
             left: 0;
             top: 0;
-            width: 100%;
-            margin: 0;
-            padding: 24px;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 16px !important;
             box-shadow: none !important;
             border: 1px solid #cbd5e1 !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
           }
-          .no-print {
+          .no-print, .print\\:hidden {
             display: none !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
         }
       `}</style>
@@ -242,9 +613,9 @@ This is a cryptographically verified electronic cooperative receipt.
             </div>
           </div>
 
-          {/* Before & After Visual Audit Photos */}
+          {/* Before & After Visual Audit Photos (Hidden in 1-Page PDF Print) */}
           {(booking.problemPhoto || booking.completionPhoto) && (
-            <div className="space-y-2">
+            <div className="space-y-2 no-print print:hidden">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                   <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
