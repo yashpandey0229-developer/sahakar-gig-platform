@@ -90,14 +90,18 @@ export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
 
   const trade = getTradeName(booking.serviceId);
 
-  // Real-time matching artisans from database/context state (Strictly genuine data, zero random math!)
-  const matchingOnlineWorkers = (workers || []).filter(w => 
-    (w.status === 'online' || w.isOnline) && 
-    w.skills && 
-    w.skills.includes(booking.serviceId)
-  );
+  // Real-time matching artisans from database/context state (Strictly genuine data, dynamic count according to registered/online workers!)
+  const matchingOnlineWorkers = (workers || []).filter(w => {
+    const isOnline = (w.status === 'online' || w.isOnline);
+    const skills = Array.isArray(w.skills) ? w.skills : [w.skills];
+    const matches = skills.some(s => s && (s === booking.serviceId || booking.serviceId?.includes(s) || s?.includes(booking.serviceId)));
+    return isOnline && matches;
+  });
 
-  const totalAvailableCount = booking.availableWorkersCount || matchingOnlineWorkers.length || 10;
+  const totalAvailableCount = (booking.availableWorkersCount !== undefined && booking.availableWorkersCount !== null)
+    ? booking.availableWorkersCount
+    : matchingOnlineWorkers.length;
+
   const declinedCount = booking.declinedWorkersCount || (booking.declinedWorkerIds ? booking.declinedWorkerIds.length : 0);
   const quotesCount = Array.isArray(booking.quotes) ? booking.quotes.length : 0;
   const pendingCount = Math.max(0, totalAvailableCount - declinedCount - (booking.workerId ? 1 : 0));
@@ -110,9 +114,10 @@ export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
         phone: w.phone,
         avatar: w.avatar,
         rating: w.rating,
-        societyName: w.societyName,
+        societyName: w.societyName || w.society,
         distanceKm: 1.8,
-        status: 'notified'
+        status: 'notified',
+        isCurrentLoggedInWorker: w.id === activeWorker?.id
       }));
 
 
@@ -338,7 +343,7 @@ export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
                       </span>
                     </div>
                     <h3 className="text-xl sm:text-2xl font-black text-white font-['Outfit'] mt-1 flex items-center gap-2">
-                      <span>{totalAvailableCount} {trade.plural} Available in Area</span>
+                      <span>{totalAvailableCount} {totalAvailableCount === 1 ? trade.singular : trade.plural} Available in Area</span>
                     </h3>
                     <p className="text-xs text-slate-300 mt-0.5 font-medium">
                       Pinging certified cooperative artisans across Pune within 10 km
@@ -442,6 +447,11 @@ export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
                             <div className="truncate">
                               <div className="flex items-center gap-1.5">
                                 <span className="font-bold text-white truncate">{artisan.name}</span>
+                                {(artisan.isCurrentLoggedInWorker || artisan.workerId === activeWorker?.id) && (
+                                  <span className="text-[9px] bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded font-black tracking-tight shrink-0">
+                                    YOU
+                                  </span>
+                                )}
                                 <span className="text-[10px] text-amber-400 font-bold shrink-0">
                                   ★ {artisan.rating || 4.9}
                                 </span>

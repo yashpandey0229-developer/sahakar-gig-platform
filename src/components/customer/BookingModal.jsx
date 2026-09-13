@@ -18,11 +18,11 @@ import { useAppState } from '../../context/AppStateContext';
 export function BookingModal({ service, isOpen, onClose, onBookingSuccess }) {
   const { customer, createBooking, detectUserLocation, isLocating, workers } = useAppState();
   
-  const matchingWorkersCount = (workers || []).filter(w => 
-    (w.status === 'online' || w.isOnline) && 
-    w.skills && 
-    w.skills.includes(service?.id)
-  ).length;
+  const matchingWorkersCount = (workers || []).filter(w => {
+    const isOnline = (w.status === 'online' || w.isOnline);
+    const skills = Array.isArray(w.skills) ? w.skills : [w.skills];
+    return isOnline && skills.some(s => s && (s === service?.id || service?.id?.includes(s) || s?.includes(service?.id)));
+  }).length;
 
   const [selectedSubService, setSelectedSubService] = useState(
     service?.subServices[0] || null
@@ -115,7 +115,7 @@ export function BookingModal({ service, isOpen, onClose, onBookingSuccess }) {
           <div className="flex items-center gap-2 text-emerald-950 font-bold">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
             <span>
-              ⚡ <strong>{matchingWorkersCount} Verified {service.title.split(' ')[0]}s Available</strong> in your Pune sector
+              ⚡ <strong>{matchingWorkersCount} Verified {service?.title ? service.title.split(' ')[0] : 'Artisan'}{matchingWorkersCount === 1 ? '' : 's'} Available</strong> in your Pune sector
             </span>
           </div>
           <span className="text-[10px] bg-emerald-600 text-white font-mono font-bold px-2 py-0.5 rounded-md">

@@ -338,12 +338,21 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet, onOpenHistor
 
       {/* Incoming Live Dispatch Alert with 10 km Geofence Verification (Uber/Ola Matching) */}
       {(() => {
-        const unDeclinedGigs = (pendingBroadcastingGigs || []).filter(
-          g => !g.declinedWorkerIds?.includes(activeWorker?.id)
-        );
-        if (!unDeclinedGigs.length || (activeBooking && activeBooking.status !== 'COMPLETED')) return null;
+        // Only consider worker busy if they have an active assigned job that is in progress
+        const isWorkerOccupied = activeBooking && ['ACCEPTED', 'EN_ROUTE', 'ARRIVED', 'IN_PROGRESS'].includes(activeBooking.status);
+        if (isWorkerOccupied) return null;
 
-        const gig = unDeclinedGigs[0];
+        // Filter pending broadcasting gigs that match active worker's skills and haven't been declined by this worker
+        const workerSkills = Array.isArray(activeWorker?.skills) ? activeWorker.skills : [activeWorker?.skills];
+        const matchingGigs = (pendingBroadcastingGigs || []).filter(g => {
+          const matchesSkill = workerSkills.some(s => s && (s === g.serviceId || g.serviceId?.includes(s) || s?.includes(g.serviceId)));
+          const hasNotDeclined = !g.declinedWorkerIds?.includes(activeWorker?.id);
+          return matchesSkill && hasNotDeclined;
+        });
+
+        if (!matchingGigs.length) return null;
+
+        const gig = matchingGigs[0];
         const custLoc = gig.customerLocation || customer?.location || { lat: 18.5298, lng: 73.8472 };
         const workerLoc = activeWorker?.location || { lat: 18.5298, lng: 73.8472 };
         const distanceKm = calculateDistanceKm(workerLoc.lat, workerLoc.lng, custLoc.lat, custLoc.lng);
@@ -768,13 +777,28 @@ export function WorkerDashboard({ onOpenJobExecution, onOpenWallet, onOpenHistor
                           </button>
                         </>
                       ) : (
-                        <button
-                          disabled
-                          className="px-6 py-3 rounded-2xl bg-white/20 text-white/60 text-xs font-bold cursor-not-allowed flex items-center gap-2"
-                        >
-                          <X className="w-4 h-4" />
-                          <span>OUT OF RANGE (&gt; 10 km)</span>
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => simulateWorkerNearCustomer(1.8)}
+                            className="px-4 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black transition flex items-center gap-1.5 shadow-sm"
+                            title="Snap worker location within 2 km of customer"
+                          >
+                            <span>📍 Snap GPS Nearby</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              acceptJobByWorker(gig.id, activeWorker);
+                              onOpenJobExecution();
+                            }}
+                            className="px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black shadow-lg flex items-center gap-2 transition"
+                            title="Accept with Express Dispatch coverage"
+                          >
+                            <Check className="w-4 h-4 text-slate-950" />
+                            <span>ACCEPT AT BASE RATE (₹{gig.totalAmount})</span>
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

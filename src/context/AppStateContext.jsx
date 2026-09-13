@@ -417,12 +417,25 @@ export function AppStateProvider({ children }) {
 
   const activeWorker = workers.find(w => w.id === activeWorkerId) || workers[0];
   
-  // Strict active booking resolution by authenticated role
-  const activeBooking = (activeBookingId ? bookings.find(b => b.id === activeBookingId && b.status !== 'CANCELLED') : null)
-    || (currentRole === 'worker'
-        ? bookings.find(b => (b.workerId === activeWorker?.id || (b.workerEmail && activeWorker?.email && b.workerEmail.toLowerCase() === activeWorker.email.toLowerCase()) || (b.workerName && activeWorker?.name && b.workerName.toLowerCase() === activeWorker.name.toLowerCase())) && b.status !== 'COMPLETED' && b.status !== 'CANCELLED')
-        : bookings.find(b => (b.customerId === customer?.id || (customer?.email && b.customerEmail && b.customerEmail.toLowerCase() === customer.email.toLowerCase())) && b.status !== 'COMPLETED' && b.status !== 'CANCELLED')
-       );
+  // Strict active booking resolution by authenticated role:
+  // - In WORKER mode: The worker ONLY has an active booking if they have genuinely ACCEPTED or are executing a job!
+  //   A BROADCASTING gig is NOT an active job for the worker yet; it's an incoming broadcast waiting on their radar!
+  // - In CUSTOMER mode: The customer's active booking is their latest in-flight booking (BROADCASTING, ACCEPTED, EN_ROUTE, IN_PROGRESS).
+  const activeBooking = currentRole === 'worker'
+    ? bookings.find(b => 
+        (b.workerId === activeWorker?.id || 
+         (b.workerEmail && activeWorker?.email && b.workerEmail.toLowerCase() === activeWorker.email.toLowerCase()) || 
+         (b.workerName && activeWorker?.name && b.workerName.toLowerCase() === activeWorker.name.toLowerCase())) && 
+        ['ACCEPTED', 'EN_ROUTE', 'ARRIVED', 'IN_PROGRESS'].includes(b.status)
+      )
+    : ((activeBookingId ? bookings.find(b => b.id === activeBookingId && b.status !== 'CANCELLED') : null)
+        || bookings.find(b => 
+            (b.customerId === customer?.id || 
+             (customer?.email && b.customerEmail && b.customerEmail.toLowerCase() === customer.email.toLowerCase())) && 
+            b.status !== 'COMPLETED' && 
+            b.status !== 'CANCELLED'
+          )
+      );
 
   const pendingBroadcastingGigs = bookings.filter(b => b.status === 'BROADCASTING');
 
@@ -768,12 +781,13 @@ export function AppStateProvider({ children }) {
 
     const custLoc = bookingDetails.location || customer.location || { lat: 18.5298, lng: 73.8472 };
 
-    // Real-Time Query: Strictly count and list verified matching online cooperative workers (No random numbers!)
-    const matchingWorkers = workers.filter(w => 
-      (w.status === 'online' || w.isOnline) && 
-      w.skills && 
-      w.skills.includes(service.id)
-    );
+    // Real-Time Query: Strictly count and list verified matching online cooperative workers (Dynamic based on real registered/online workers for that skill)
+    const matchingWorkers = workers.filter(w => {
+      const isOnline = (w.status === 'online' || w.isOnline);
+      const skills = Array.isArray(w.skills) ? w.skills : [w.skills];
+      const matches = skills.some(s => s && (s === service.id || service.id?.includes(s) || s?.includes(service.id)));
+      return isOnline && matches;
+    });
 
     const notifiedWorkers = matchingWorkers.map(w => {
       const dist = calculateDistanceKm(
@@ -788,9 +802,10 @@ export function AppStateProvider({ children }) {
         phone: w.phone,
         avatar: w.avatar,
         rating: w.rating,
-        societyName: w.societyName,
+        societyName: w.societyName || w.society,
         distanceKm: dist,
-        status: 'notified'
+        status: 'notified',
+        isCurrentLoggedInWorker: w.id === activeWorker?.id
       };
     });
 
@@ -893,49 +908,6 @@ export function AppStateProvider({ children }) {
     );
 
     speechService.speak('कार्य अस्वीकार किया गया।', 'hi');
-  };
-
-  // 2. Auto-Assign Candidate Workers (Fallback for Solo Demo)
-  const autoAssignWorker = (bookingId, serviceId, customerLoc) => {
-    const matched = findBestMatchingWorkers(serviceId, customerLoc, workers);
-    const topCandidate = matched.length > 0 ? matched[0] : workers[0];
-
-    const updates = {
-      workerId: topCandidate.id,
-      workerName: topCandidate.name,
-      workerEmail: topCandidate.email || '',
-      workerPhone: topCandidate.phone,
-      workerAvatar: topCandidate.avatar,
-      workerRating: topCandidate.rating,
-      workerSociety: topCandidate.societyName,
-      workerLocation: { ...topCandidate.location },
-      hourlyRate: topCandidate.hourlyRate || 249,
-      optimizationScore: topCandidate.optimizationScore || 95,
-      status: 'ACCEPTED',
-      etaMins: topCandidate.estimatedEtaMins || 10
-    };
-
-    setBookings(prev =>
-      prev.map(b => {
-        if (b.id === bookingId) {
-          return { ...b, ...updates };
-        }
-        return b;
-      })
-    );
-
-    api.updateBooking(bookingId, updates).catch(console.warn);
-
-    addNotification(
-      'Optimal Artisan Dispatched (Nearest • Top-Rated • Best Cost)',
-      `${topCandidate.name} (${topCandidate.distanceKm || 1.8} km • ${topCandidate.rating}★ • ₹${topCandidate.hourlyRate || 249}/hr) matched.`,
-      'match'
-    );
-
-    speechService.speak(
-      `सर्वोत्तम कारीगर का चयन हुआ है: ${topCandidate.name}, रेटिंग ${topCandidate.rating} स्टार, आपके स्थान के लिए रवाना हो रहे हैं।`,
-      'hi'
-    );
   };
 
   // 2B. Update Arbitrary Booking Fields (e.g. Completion Photo, Problem Photo)
