@@ -20,7 +20,11 @@ export function CooperativeReceiptModal({ booking, isOpen, onClose }) {
 
   if (!isOpen || !booking) return null;
 
-  const total = booking.totalAmount || 499;
+  const total = Number(booking.totalAmount) || 499;
+  const basePrice = Number(booking.baseLaborPrice) || total;
+  const materialCost = Number(booking.materialCost) || 0;
+  const complexityCost = Number(booking.complexityCost) || 0;
+  const addOns = Array.isArray(booking.addOns) ? booking.addOns : [];
   const workerCut = booking.breakdown?.workerPayout ?? Math.round(total * 0.88);
   const welfareCut = booking.breakdown?.welfareFundContribution ?? Math.round(total * 0.07);
   const platformCut = booking.breakdown?.platformMaintenance ?? Math.round(total * 0.05);
@@ -287,13 +291,36 @@ export function CooperativeReceiptModal({ booking, isOpen, onClose }) {
               </div>
             </div>
 
-            <!-- Service Item -->
-            <div class="service-strip">
-              <div>
-                <div class="service-name">${booking.subServiceName || booking.serviceTitle}</div>
-                <div class="service-category">Category: ${booking.serviceTitle} • Doorstep Professional Execution</div>
+            <!-- Hybrid Service Itemization (Rate Card Floor + Materials) -->
+            <div style="border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; background: #ffffff;">
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; margin-bottom: 6px;">
+                <div>
+                  <div class="service-name">${booking.subServiceName || booking.serviceTitle} (Base Labor Execution)</div>
+                  <div class="service-category">Cooperative Standard Rate Card Floor (Zero Wage Undercutting)</div>
+                </div>
+                <div style="font-weight: 800; font-size: 13px;">₹${basePrice}</div>
               </div>
-              <div class="service-amount">₹${total}</div>
+              ${addOns && addOns.length > 0 ? addOns.map(item => `
+                <div style="display: flex; justify-content: space-between; font-size: 10px; color: #b45309; padding: 2px 0;">
+                  <span>+ Genuine Spare Part: ${item.name}</span>
+                  <span style="font-weight: 700;">+₹${item.price}</span>
+                </div>
+              `).join('') : (materialCost > 0 ? `
+                <div style="display: flex; justify-content: space-between; font-size: 10px; color: #b45309; padding: 2px 0;">
+                  <span>+ Genuine Spare Parts & Materials:</span>
+                  <span style="font-weight: 700;">+₹${materialCost}</span>
+                </div>
+              ` : '')}
+              ${complexityCost > 0 ? `
+                <div style="display: flex; justify-content: space-between; font-size: 10px; color: #0284c7; padding: 2px 0;">
+                  <span>+ Task Complexity Scope:</span>
+                  <span style="font-weight: 700;">+₹${complexityCost}</span>
+                </div>
+              ` : ''}
+              <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 13px; border-top: 1.5px solid #e2e8f0; padding-top: 6px; margin-top: 6px;">
+                <span>Total Settled Invoice:</span>
+                <span style="color: #047857;">₹${total}</span>
+              </div>
             </div>
 
             <!-- 88% - 7% - 5% Cooperative Split Table -->
@@ -593,23 +620,59 @@ This is a cryptographically verified electronic cooperative receipt.
             </div>
           </div>
 
-          {/* Service Itemization */}
+          {/* Service Itemization - Hybrid Base Pricing Architecture */}
           <div>
-            <div className="text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-              Service Rendered
-            </div>
-            <div className="p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between text-xs">
-              <div>
-                <span className="font-black text-slate-900 text-sm">
-                  {booking.subServiceName || booking.serviceTitle}
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Category: {booking.serviceTitle} • Doorstep Professional Execution
-                </p>
-              </div>
-              <span className="text-base font-black text-slate-900">
-                ₹{total}
+            <div className="text-xs font-black text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+              <span>Audited Service & Material Itemization</span>
+              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2 py-0.5 rounded-full">
+                Rate Card Protected
               </span>
+            </div>
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 text-xs space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-black text-slate-900 text-sm block">
+                    {booking.subServiceName || booking.serviceTitle}
+                  </span>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Cooperative Base Labor Execution • Guaranteed Fair Floor
+                  </p>
+                </div>
+                <span className="text-sm font-black font-mono text-slate-900">
+                  ₹{basePrice}
+                </span>
+              </div>
+
+              {/* Itemized Materials & Scope Add-ons */}
+              {((addOns && addOns.length > 0) || materialCost > 0 || complexityCost > 0) && (
+                <div className="pt-2 border-t border-slate-100 space-y-1.5 text-[11px]">
+                  {addOns && addOns.length > 0 ? (
+                    addOns.map(item => (
+                      <div key={item.id} className="flex justify-between text-amber-800">
+                        <span className="font-medium">• Genuine Spare Part: {item.name}</span>
+                        <span className="font-mono font-bold">+₹{item.price}</span>
+                      </div>
+                    ))
+                  ) : materialCost > 0 ? (
+                    <div className="flex justify-between text-amber-800">
+                      <span className="font-medium">• Genuine Spare Parts & Materials:</span>
+                      <span className="font-mono font-bold">+₹{materialCost}</span>
+                    </div>
+                  ) : null}
+
+                  {complexityCost > 0 && (
+                    <div className="flex justify-between text-sky-800">
+                      <span className="font-medium">• Task Complexity Scope:</span>
+                      <span className="font-mono font-bold">+₹{complexityCost}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-slate-200 flex items-center justify-between font-black text-slate-900">
+                <span className="text-xs uppercase tracking-wider text-slate-600">Total Settled Invoice:</span>
+                <span className="text-base text-emerald-800 font-mono">₹{total}</span>
+              </div>
             </div>
           </div>
 

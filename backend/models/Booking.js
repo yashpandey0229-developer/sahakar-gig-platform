@@ -47,7 +47,23 @@ const bookingSchema = new mongoose.Schema({
   completionPhoto: { type: String },
   ratingGiven: { type: Number },
   reviewText: { type: String },
-  quotes: [{ type: mongoose.Schema.Types.Mixed }]
+  baseLaborPrice: { type: Number },
+  materialCost: { type: Number, default: 0 },
+  complexityCost: { type: Number, default: 0 },
+  addOns: [{
+    id: { type: String },
+    name: { type: String },
+    price: { type: Number },
+    category: { type: String, default: 'material' },
+    notes: { type: String },
+    addedAt: { type: String }
+  }],
+  quotes: [{ type: mongoose.Schema.Types.Mixed }],
+  availableWorkersCount: { type: Number, default: 0 },
+  notifiedWorkers: [{ type: mongoose.Schema.Types.Mixed }],
+  declinedWorkerIds: [{ type: String }],
+  declinedWorkersCount: { type: Number, default: 0 },
+  declinedWorkers: [{ type: mongoose.Schema.Types.Mixed }]
 }, { timestamps: true });
 
 export default mongoose.model('Booking', bookingSchema);

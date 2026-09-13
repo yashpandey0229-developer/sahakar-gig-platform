@@ -31,42 +31,6 @@ export async function autoSeedDatabase() {
       // Seed Welfare Metric
       await WelfareMetric.create(COOP_WELFARE_METRICS);
       console.log('✅ Seeded collective welfare reserve metrics into MongoDB.');
-
-      // Seed sample completed booking
-      await Booking.create({
-        id: 'BK-7821',
-        serviceId: 'electrical',
-        serviceTitle: 'Electrical & Power Systems',
-        subServiceName: 'MCB / Short Circuit Troubleshooting',
-        customerId: 'c-501',
-        customerName: 'Priya Sharma',
-        customerPhone: '+91 98221 55601',
-        customerAddress: 'Flat 402, Rohan Heights, FC Road, Shivajinagar, Pune',
-        customerLocation: { lat: 18.5298, lng: 73.8472 },
-        workerId: 'w-101',
-        workerName: 'Ramesh Jadhav',
-        workerPhone: '+91 98230 44819',
-        workerAvatar: 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=150',
-        workerRating: 4.9,
-        workerSociety: 'Pune Urban Electrical & Tech Cooperative',
-        totalAmount: 499,
-        status: 'COMPLETED',
-        startOtp: '4819',
-        endOtp: '7721',
-        breakdown: {
-          totalAmount: 499,
-          workerPayout: 439,
-          workerPercent: 88,
-          welfareFundContribution: 35,
-          welfarePercent: 7,
-          platformMaintenance: 25,
-          platformPercent: 5,
-          estimatedPatronageDividend: 20
-        },
-        ratingGiven: 5,
-        reviewText: 'Prompt arrival and explained the fair cooperative billing breakdown. Very professional!'
-      });
-      console.log('✅ Seeded sample completed booking into MongoDB.');
     } else {
       console.log(`ℹ️ MongoDB already initialized with ${workerCount} cooperative artisans.`);
     }

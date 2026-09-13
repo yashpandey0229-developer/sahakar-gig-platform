@@ -122,13 +122,21 @@ export function WorkerPortal() {
             <span>+ {language === 'hi' ? 'साथी प्रोफाइल / नया पंजीकरण' : 'Register / Edit Profile'}</span>
           </button>
 
-          {/* Locked Authenticated Partner Identity Badge */}
-          <div className="flex items-center gap-2 bg-[#1C2A39] border border-amber-500/40 px-3.5 py-1.5 rounded-xl text-xs font-mono">
+          {/* Active Worker Selector Dropdown */}
+          <div className="flex items-center gap-1.5 bg-[#1C2A39] border border-amber-500/40 px-2.5 py-1 rounded-xl text-xs font-mono">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="font-bold text-white truncate max-w-[140px]">{activeWorker?.name}</span>
-            <span className="text-amber-400 font-bold shrink-0">
-              ⭐ {typeof activeWorker?.rating === 'number' ? activeWorker.rating.toFixed(2) : (activeWorker?.rating || '4.90')}
-            </span>
+            <select
+              value={activeWorker?.id || ''}
+              onChange={(e) => setActiveWorkerId(e.target.value)}
+              className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer max-w-[170px]"
+              title="Switch Active Artisan Terminal"
+            >
+              {workers.map(w => (
+                <option key={w.id} value={w.id} className="bg-slate-900 text-white">
+                  {w.name} ({w.skills?.[0]} • {w.rating}★)
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Quick Exit to Customer Mode Button */}

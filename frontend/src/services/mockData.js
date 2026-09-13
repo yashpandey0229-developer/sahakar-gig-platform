@@ -156,6 +156,7 @@ export const SERVICES_CATALOG = [
 ];
 
 export const INITIAL_WORKERS = [
+  // 1. Ramesh Jadhav (Electrical & Appliances - Shivajinagar)
   {
     id: 'w-101',
     name: 'Ramesh Jadhav',
@@ -169,23 +170,19 @@ export const INITIAL_WORKERS = [
     hourlyRate: 249,
     visitingCharge: 149,
     totalJobsCompleted: 438,
-    cooperativeMemberId: 'MH-PUN-ELEC-042',
+    cooperativeMemberId: 'MH-PUN-ELEC-001',
     societyName: 'Pune Urban Electrical & Tech Cooperative Society',
     location: { lat: 18.5204, lng: 73.8567, address: 'Shivajinagar, Pune' },
-    status: 'online', // 'online' | 'busy' | 'offline'
-    fairRotationScore: 94, // Preserved for backwards-compatibility
+    status: 'online',
+    isOnline: true,
+    fairRotationScore: 94,
     certification: 'NSDC Level 4 Certified Electrician',
     aadhaarVerified: true,
     skillIndiaBadge: true,
     languages: ['Hindi', 'Marathi', 'English'],
-    wallet: {
-      grossEarnings: 38450,
-      availableBalance: 4620,
-      patronageDividends: 3120, // Accrued cooperative profit share
-      welfarePoints: 850,       // Usable for health insurance/loans
-      emergencyFundReserved: 1400
-    }
+    wallet: { grossEarnings: 38450, availableBalance: 4620, patronageDividends: 3120, welfarePoints: 850, emergencyFundReserved: 1400 }
   },
+  // 2. Sunita Patil (Deep Cleaning & Elder Care - FC Road)
   {
     id: 'w-102',
     name: 'Sunita Patil',
@@ -203,19 +200,15 @@ export const INITIAL_WORKERS = [
     societyName: 'Mahila Swavalamban Cooperative Society',
     location: { lat: 18.5314, lng: 73.8446, address: 'FC Road, Pune' },
     status: 'online',
+    isOnline: true,
     fairRotationScore: 98,
     certification: 'Govt. Certified Sanitization Specialist',
     aadhaarVerified: true,
     skillIndiaBadge: true,
     languages: ['Marathi', 'Hindi'],
-    wallet: {
-      grossEarnings: 29800,
-      availableBalance: 3450,
-      patronageDividends: 2450,
-      welfarePoints: 920,
-      emergencyFundReserved: 1100
-    }
+    wallet: { grossEarnings: 29800, availableBalance: 3450, patronageDividends: 2450, welfarePoints: 920, emergencyFundReserved: 1100 }
   },
+  // 3. Mohammad Tariq (Plumbing & Appliances - Kothrud)
   {
     id: 'w-103',
     name: 'Mohammad Tariq',
@@ -233,19 +226,15 @@ export const INITIAL_WORKERS = [
     societyName: 'Sahyadri Plumbing & Maintenance Workers Coop',
     location: { lat: 18.5089, lng: 73.8258, address: 'Kothrud, Pune' },
     status: 'online',
+    isOnline: true,
     fairRotationScore: 89,
     certification: 'Master Plumber Certification (ITI Pune)',
     aadhaarVerified: true,
     skillIndiaBadge: true,
     languages: ['Hindi', 'Urdu', 'Marathi'],
-    wallet: {
-      grossEarnings: 49200,
-      availableBalance: 6100,
-      patronageDividends: 4200,
-      welfarePoints: 1100,
-      emergencyFundReserved: 1800
-    }
+    wallet: { grossEarnings: 49200, availableBalance: 6100, patronageDividends: 4200, welfarePoints: 1100, emergencyFundReserved: 1800 }
   },
+  // 4. Vikram Singh (Electrical & AC Repair - Baner)
   {
     id: 'w-104',
     name: 'Vikram Singh',
@@ -259,23 +248,19 @@ export const INITIAL_WORKERS = [
     hourlyRate: 299,
     visitingCharge: 179,
     totalJobsCompleted: 390,
-    cooperativeMemberId: 'MH-PUN-HVAC-031',
-    societyName: 'Maharashtra HVAC Technicians Cooperative',
+    cooperativeMemberId: 'MH-PUN-ELEC-002',
+    societyName: 'Maharashtra HVAC & Electrical Technicians Cooperative',
     location: { lat: 18.5590, lng: 73.7868, address: 'Baner, Pune' },
     status: 'online',
+    isOnline: true,
     fairRotationScore: 91,
-    certification: 'BEE Certified Energy Efficient AC Specialist',
+    certification: 'BEE Certified Energy Efficient Specialist',
     aadhaarVerified: true,
     skillIndiaBadge: true,
     languages: ['Hindi', 'English', 'Punjabi'],
-    wallet: {
-      grossEarnings: 42100,
-      availableBalance: 5200,
-      patronageDividends: 3600,
-      welfarePoints: 790,
-      emergencyFundReserved: 1550
-    }
+    wallet: { grossEarnings: 42100, availableBalance: 5200, patronageDividends: 3600, welfarePoints: 790, emergencyFundReserved: 1550 }
   },
+  // 5. Anand Shinde (Carpentry & Painting - Karve Nagar)
   {
     id: 'w-105',
     name: 'Anand Shinde',
@@ -293,18 +278,221 @@ export const INITIAL_WORKERS = [
     societyName: 'Shree Ganesh Woodcraft Cooperative',
     location: { lat: 18.5074, lng: 73.8077, address: 'Karve Nagar, Pune' },
     status: 'online',
+    isOnline: true,
     fairRotationScore: 95,
     certification: 'NSDC Certified Master Carpenter',
     aadhaarVerified: true,
     skillIndiaBadge: true,
     languages: ['Marathi', 'Hindi'],
-    wallet: {
-      grossEarnings: 53800,
-      availableBalance: 7300,
-      patronageDividends: 4890,
-      welfarePoints: 1250,
-      emergencyFundReserved: 2100
-    }
+    wallet: { grossEarnings: 53800, availableBalance: 7300, patronageDividends: 4890, welfarePoints: 1250, emergencyFundReserved: 2100 }
+  },
+  // 6. Sachin Bhosale (Electrical - Kothrud)
+  {
+    id: 'w-106',
+    name: 'Sachin Bhosale',
+    nameHi: 'सचिन भोसले',
+    email: 'sachin.bhosale@coop.org',
+    phone: '+91 98221 64510',
+    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80',
+    skills: ['electrical'],
+    experienceYears: 8,
+    rating: 4.92,
+    hourlyRate: 249,
+    visitingCharge: 149,
+    totalJobsCompleted: 382,
+    cooperativeMemberId: 'MH-PUN-ELEC-003',
+    societyName: 'Kothrud Artisan Guild & Electrical Coop',
+    location: { lat: 18.5020, lng: 73.8120, address: 'Kothrud Ward, Pune' },
+    status: 'online',
+    isOnline: true,
+    fairRotationScore: 96,
+    certification: 'Govt. Licensed Wireman Grade A',
+    aadhaarVerified: true,
+    skillIndiaBadge: true,
+    languages: ['Marathi', 'Hindi'],
+    wallet: { grossEarnings: 36200, availableBalance: 4100, patronageDividends: 2800, welfarePoints: 720, emergencyFundReserved: 1200 }
+  },
+  // 7. Mahesh Shinde (Electrical - Deccan Gymkhana)
+  {
+    id: 'w-107',
+    name: 'Mahesh Shinde',
+    nameHi: 'महेश शिंदे',
+    email: 'mahesh.shinde@coop.org',
+    phone: '+91 98902 43190',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    skills: ['electrical'],
+    experienceYears: 5,
+    rating: 4.85,
+    hourlyRate: 239,
+    visitingCharge: 139,
+    totalJobsCompleted: 248,
+    cooperativeMemberId: 'MH-PUN-ELEC-004',
+    societyName: 'Deccan Wiremen & Maintenance Coop',
+    location: { lat: 18.5167, lng: 73.8415, address: 'Deccan Gymkhana, Pune' },
+    status: 'online',
+    isOnline: true,
+    fairRotationScore: 92,
+    certification: 'ITI Industrial Electrician Certified',
+    aadhaarVerified: true,
+    skillIndiaBadge: true,
+    languages: ['Marathi', 'Hindi', 'English'],
+    wallet: { grossEarnings: 28400, availableBalance: 3200, patronageDividends: 2100, welfarePoints: 640, emergencyFundReserved: 900 }
+  },
+  // 8. Rajesh Kulkarni (Electrical & Appliances - Aundh)
+  {
+    id: 'w-108',
+    name: 'Rajesh Kulkarni',
+    nameHi: 'राजेश कुलकर्णी',
+    email: 'rajesh.kulkarni@coop.org',
+    phone: '+91 97651 88204',
+    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
+    skills: ['electrical', 'appliance-repair'],
+    experienceYears: 9,
+    rating: 4.90,
+    hourlyRate: 259,
+    visitingCharge: 149,
+    totalJobsCompleted: 495,
+    cooperativeMemberId: 'MH-PUN-ELEC-005',
+    societyName: 'Aundh Smart Power & Wiring Society',
+    location: { lat: 18.5580, lng: 73.8074, address: 'Aundh Gaon, Pune' },
+    status: 'online',
+    isOnline: true,
+    fairRotationScore: 97,
+    certification: 'NSDC Master Electrician Certified',
+    aadhaarVerified: true,
+    skillIndiaBadge: true,
+    languages: ['Marathi', 'Hindi', 'English'],
+    wallet: { grossEarnings: 44100, availableBalance: 5900, patronageDividends: 3900, welfarePoints: 980, emergencyFundReserved: 1600 }
+  },
+  // 9. Amit Deshmukh (Electrical - Viman Nagar)
+  {
+    id: 'w-109',
+    name: 'Amit Deshmukh',
+    nameHi: 'अमित देशमुख',
+    email: 'amit.deshmukh@coop.org',
+    phone: '+91 98234 19823',
+    avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80',
+    skills: ['electrical'],
+    experienceYears: 4,
+    rating: 4.87,
+    hourlyRate: 249,
+    visitingCharge: 149,
+    totalJobsCompleted: 215,
+    cooperativeMemberId: 'MH-PUN-ELEC-006',
+    societyName: 'Viman Nagar Power Tech Workers Coop',
+    location: { lat: 18.5679, lng: 73.9143, address: 'Viman Nagar, Pune' },
+    status: 'online',
+    isOnline: true,
+    fairRotationScore: 90,
+    certification: 'Govt. Safety Earthing & Circuit Certified',
+    aadhaarVerified: true,
+    skillIndiaBadge: true,
+    languages: ['Hindi', 'Marathi', 'English'],
+    wallet: { grossEarnings: 24100, availableBalance: 2900, patronageDividends: 1800, welfarePoints: 580, emergencyFundReserved: 800 }
+  },
+  // 10. Ganesh More (Electrical - Hadapsar)
+  {
+    id: 'w-110',
+    name: 'Ganesh More',
+    nameHi: 'गणेश मोरे',
+    email: 'ganesh.more@coop.org',
+    phone: '+91 98603 55192',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    skills: ['electrical'],
+    experienceYears: 10,
+    rating: 4.89,
+    hourlyRate: 249,
+    visitingCharge: 149,
+    totalJobsCompleted: 520,
+    cooperativeMemberId: 'MH-PUN-ELEC-007',
+    societyName: 'Swargate & Hadapsar Electricians Guild',
+    location: { lat: 18.5089, lng: 73.9260, address: 'Hadapsar Magarpatta, Pune' },
+    status: 'online',
+    isOnline: true,
+    fairRotationScore: 93,
+    certification: 'NSDC Level 4 High Tension Certified',
+    aadhaarVerified: true,
+    skillIndiaBadge: true,
+    languages: ['Marathi', 'Hindi'],
+    wallet: { grossEarnings: 47900, availableBalance: 6400, patronageDividends: 4100, welfarePoints: 1050, emergencyFundReserved: 1750 }
+  },
+  // 11. Nitin Pawar (Electrical & Appliances - Wakad)
+  {
+    id: 'w-111',
+    name: 'Nitin Pawar',
+    nameHi: 'नितिन पवार',
+    email: 'nitin.pawar@coop.org',
+    phone: '+91 98229 33718',
+    avatar: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=150&auto=format&fit=crop&q=80',
+    skills: ['electrical', 'appliance-repair'],
+    experienceYears: 7,
+    rating: 4.91,
+    hourlyRate: 259,
+    visitingCharge: 149,
+    totalJobsCompleted: 360,
+    cooperativeMemberId: 'MH-PUN-ELEC-008',
+    societyName: 'PCMC & Wakad Electrical Artisans Coop',
+    location: { lat: 18.5987, lng: 73.7684, address: 'Wakad Bridge, Pune' },
+    status: 'online',
+    isOnline: true,
+    fairRotationScore: 95,
+    certification: 'Certified Domestic Power Safety Auditor',
+    aadhaarVerified: true,
+    skillIndiaBadge: true,
+    languages: ['Marathi', 'Hindi', 'English'],
+    wallet: { grossEarnings: 39500, availableBalance: 4800, patronageDividends: 3200, welfarePoints: 890, emergencyFundReserved: 1450 }
+  },
+  // 12. Pradeep Salunkhe (Electrical - Pune Camp)
+  {
+    id: 'w-112',
+    name: 'Pradeep Salunkhe',
+    nameHi: 'प्रदीप साळुंखे',
+    email: 'pradeep.salunkhe@coop.org',
+    phone: '+91 97640 12895',
+    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
+    skills: ['electrical'],
+    experienceYears: 8,
+    rating: 4.86,
+    hourlyRate: 249,
+    visitingCharge: 139,
+    totalJobsCompleted: 410,
+    cooperativeMemberId: 'MH-PUN-ELEC-009',
+    societyName: 'Camp & Pune Station Guild of Technicians',
+    location: { lat: 18.5135, lng: 73.8784, address: 'MG Road, Pune Camp' },
+    status: 'online',
+    isOnline: true,
+    fairRotationScore: 92,
+    certification: 'ITI Electrical & Energy Audit Specialist',
+    aadhaarVerified: true,
+    skillIndiaBadge: true,
+    languages: ['Hindi', 'Marathi', 'English'],
+    wallet: { grossEarnings: 37800, availableBalance: 4400, patronageDividends: 2950, welfarePoints: 830, emergencyFundReserved: 1300 }
+  },
+  // 13. Deepak Gaikwad (Electrical - Sinhagad Road)
+  {
+    id: 'w-113',
+    name: 'Deepak Gaikwad',
+    nameHi: 'दीपक गायकवाड',
+    email: 'deepak.gaikwad@coop.org',
+    phone: '+91 98501 77340',
+    avatar: 'https://images.unsplash.com/photo-1521119989659-a83eee488004?w=150&auto=format&fit=crop&q=80',
+    skills: ['electrical'],
+    experienceYears: 6,
+    rating: 4.93,
+    hourlyRate: 249,
+    visitingCharge: 149,
+    totalJobsCompleted: 345,
+    cooperativeMemberId: 'MH-PUN-ELEC-010',
+    societyName: 'Sinhagad Road Powerline Technicians Coop',
+    location: { lat: 18.4789, lng: 73.8245, address: 'Sinhagad Road, Pune' },
+    status: 'online',
+    isOnline: true,
+    fairRotationScore: 96,
+    certification: 'NSDC Certified Power Systems Expert',
+    aadhaarVerified: true,
+    skillIndiaBadge: true,
+    languages: ['Marathi', 'Hindi'],
+    wallet: { grossEarnings: 33900, availableBalance: 3950, patronageDividends: 2700, welfarePoints: 770, emergencyFundReserved: 1250 }
   }
 ];
 

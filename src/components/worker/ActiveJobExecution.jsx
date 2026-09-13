@@ -19,7 +19,9 @@ import {
   Printer,
   X,
   LifeBuoy,
-  Star
+  Star,
+  Plus,
+  Wrench
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 import { LiveMap } from '../common/LiveMap';
@@ -35,6 +37,7 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
     bookings,
     updateBookingStatus, 
     updateBooking,
+    addBookingAddon,
     activeWorker, 
     setCurrentRole
   } = useAppState();
@@ -46,6 +49,9 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
   const [successStep, setSuccessStep] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showAddonForm, setShowAddonForm] = useState(false);
+  const [addonName, setAddonName] = useState('');
+  const [addonPrice, setAddonPrice] = useState('');
 
   // Safely resolve the active job (even after completion transition)
   const currentJob = activeBooking || 
@@ -435,6 +441,187 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
             </div>
           )}
 
+          {/* On-Site Material & Scope Add-on Terminal (Hybrid Base Pricing) */}
+          {(currentJob.status === 'ARRIVED' || currentJob.status === 'IN_PROGRESS') && (
+            <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-amber-500/10 via-white to-amber-500/5 border-2 border-amber-400/50 space-y-4 shadow-lg animate-in fade-in">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold shadow-xs">
+                    <Wrench className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900 font-['Outfit'] flex items-center gap-1.5">
+                      <span>On-Site Materials & Scope Add-ons</span>
+                      <span className="text-[10px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full font-bold">
+                        Hybrid Pricing
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Discovered broken parts or extra work? Add genuine materials transparently to the citizen's bill.
+                    </p>
+                  </div>
+                </div>
+
+                {!showAddonForm && (
+                  <button
+                    onClick={() => setShowAddonForm(true)}
+                    className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black shadow-md flex items-center gap-1 transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Material (+₹)</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Added Add-ons List */}
+              {Array.isArray(currentJob.addOns) && currentJob.addOns.length > 0 ? (
+                <div className="space-y-2 bg-white p-3 rounded-2xl border border-slate-200">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                    Itemized On-Site Additions ({currentJob.addOns.length})
+                  </span>
+                  <div className="divide-y divide-slate-100">
+                    {currentJob.addOns.map((addon) => (
+                      <div key={addon.id} className="py-2 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          <div>
+                            <span className="font-bold text-slate-900">{addon.name}</span>
+                            {addon.notes && (
+                              <span className="text-[10px] text-slate-400 block">{addon.notes}</span>
+                            )}
+                          </div>
+                        </div>
+                        <span className="font-mono font-black text-amber-700 text-sm">
+                          +₹{addon.price}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-white/70 rounded-2xl border border-dashed border-amber-300/80 text-center text-xs text-slate-500">
+                  <span>Standard Labor Rate Card active. No on-site materials added yet.</span>
+                </div>
+              )}
+
+              {/* Add Material Input Form Drawer */}
+              {showAddonForm && (
+                <div className="p-4 rounded-2xl bg-slate-950 text-white space-y-3 animate-in zoom-in-95">
+                  <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                    <span className="text-xs font-bold text-amber-400">
+                      Enter Spare Part / Scope Details (सामान का नाम व कीमत):
+                    </span>
+                    <button
+                      onClick={() => setShowAddonForm(false)}
+                      className="text-xs text-slate-400 hover:text-white"
+                    >
+                      ✕ Cancel
+                    </button>
+                  </div>
+
+                  {/* Trade Preset Chips */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-slate-400 font-bold">Quick Presets:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { name: 'Brass Angle Valve', price: 180 },
+                        { name: '1-inch PVC Pipe & Joint', price: 150 },
+                        { name: 'Teflon Tape & Washers', price: 50 },
+                        { name: '32A MCB Switch', price: 280 },
+                        { name: '15A Modular Socket', price: 140 },
+                        { name: 'Capacitor 2.5uF', price: 90 }
+                      ].map(chip => (
+                        <button
+                          key={chip.name}
+                          type="button"
+                          onClick={() => {
+                            setAddonName(chip.name);
+                            setAddonPrice(chip.price);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] text-slate-200 transition"
+                        >
+                          {chip.name} (₹{chip.price})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <div>
+                      <label className="text-[10px] text-slate-300 font-bold block mb-1">
+                        Item Name (सामान का नाम)
+                      </label>
+                      <input
+                        type="text"
+                        value={addonName}
+                        onChange={(e) => setAddonName(e.target.value)}
+                        placeholder="e.g. Havells 32A MCB or Brass Valve"
+                        className="w-full px-3 py-2 bg-slate-900 border border-white/20 rounded-xl text-white text-xs focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-300 font-bold block mb-1">
+                        Price to Add to Bill (₹)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-slate-400 font-bold text-xs">₹</span>
+                        <input
+                          type="number"
+                          min="1"
+                          value={addonPrice}
+                          onChange={(e) => setAddonPrice(e.target.value)}
+                          placeholder="180"
+                          className="w-full pl-7 pr-3 py-2 bg-slate-900 border border-white/20 rounded-xl text-white text-xs font-mono font-bold focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddonForm(false)}
+                      className="px-3.5 py-2 rounded-xl bg-white/10 text-slate-300 text-xs font-bold hover:bg-white/20 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!addonName.trim() || Number(addonPrice) <= 0) return;
+                        addBookingAddon(currentJob.id, {
+                          name: addonName,
+                          price: Number(addonPrice),
+                          category: 'material'
+                        });
+                        setAddonName('');
+                        setAddonPrice('');
+                        setShowAddonForm(false);
+                      }}
+                      className="px-5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black shadow-lg transition"
+                    >
+                      + Add to Invoice
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Running Total Preview */}
+              <div className="p-3 bg-white rounded-2xl border border-slate-200 flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-slate-500 font-medium">Base Labor: <strong>₹{currentJob.baseLaborPrice || currentJob.totalAmount}</strong></span>
+                  {Number(currentJob.materialCost) > 0 && (
+                    <span className="text-amber-700 font-bold ml-2">• Parts: <strong>+₹{currentJob.materialCost}</strong></span>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Current Bill</span>
+                  <span className="text-base font-black text-slate-900 font-mono">₹{currentJob.totalAmount}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Step 5: COMPLETED -> SUCCESS CELEBRATION, 5-STAR RATING & 88-7-5 RECEIPT */}
           {currentJob.status === 'COMPLETED' && (
             <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-teal-50 border-2 border-emerald-500 text-center space-y-4 animate-in zoom-in-95 shadow-xl">
@@ -563,12 +750,33 @@ export function ActiveJobExecution({ onBackToDashboard, onOpenWallet }) {
                 </div>
               )}
 
-              {/* 88% - 7% - 5% Split Breakdown Card */}
+              {/* 88% - 7% - 5% Split Breakdown Card with Hybrid Itemization */}
               <div className="p-4 rounded-2xl bg-white border border-slate-200 text-xs space-y-2 text-left shadow-sm">
                 <div className="flex justify-between text-slate-900 font-black">
                   <span>Gross Customer Invoice</span>
                   <span>₹{currentJob.totalAmount}</span>
                 </div>
+
+                {/* Hybrid Base Rate Card Itemization */}
+                <div className="py-1.5 px-3 rounded-xl bg-slate-50 border border-slate-100 text-[11px] space-y-1">
+                  <div className="flex justify-between text-slate-600">
+                    <span>• Cooperative Minimum Base Floor:</span>
+                    <span className="font-mono font-bold">₹{currentJob.baseLaborPrice || currentJob.totalAmount}</span>
+                  </div>
+                  {Number(currentJob.materialCost) > 0 && (
+                    <div className="flex justify-between text-amber-800 font-semibold">
+                      <span>• Genuine Spare Parts & Materials:</span>
+                      <span className="font-mono font-bold">+₹{currentJob.materialCost}</span>
+                    </div>
+                  )}
+                  {Number(currentJob.complexityCost) > 0 && (
+                    <div className="flex justify-between text-sky-800 font-semibold">
+                      <span>• Task Complexity Scope:</span>
+                      <span className="font-mono font-bold">+₹{currentJob.complexityCost}</span>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex justify-between text-emerald-700 font-bold pt-1 border-t border-slate-100">
                   <span>1. Direct Wallet Payout (88%)</span>
                   <span>+₹{currentJob.breakdown?.workerPayout || Math.round(currentJob.totalAmount * 0.88)}</span>

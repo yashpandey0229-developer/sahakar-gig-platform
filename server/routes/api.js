@@ -102,32 +102,7 @@ router.get('/services', (req, res) => {
 
 // In-memory fallback stores for high resilience
 let inMemoryWorkers = [...INITIAL_WORKERS];
-let inMemoryBookings = [
-  {
-    id: 'BK-7821',
-    serviceId: 'electrical',
-    serviceTitle: 'Electrical & Power Systems',
-    subServiceName: 'MCB / Short Circuit Troubleshooting',
-    customerId: 'c-501',
-    customerName: 'Priya Sharma',
-    customerPhone: '+91 98221 55601',
-    customerAddress: 'Flat 402, Rohan Heights, FC Road, Shivajinagar, Pune',
-    customerLocation: { lat: 18.5298, lng: 73.8472 },
-    workerId: 'w-101',
-    workerName: 'Ramesh Jadhav',
-    workerPhone: '+91 98230 44819',
-    workerAvatar: 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=150&auto=format&fit=crop&q=80',
-    workerRating: 4.9,
-    workerSociety: 'Pune Urban Electrical & Tech Cooperative',
-    totalAmount: 499,
-    status: 'COMPLETED',
-    startOtp: '4819',
-    endOtp: '7721',
-    createdAt: '2026-08-22T14:30:00Z',
-    ratingGiven: 5,
-    reviewText: 'Prompt arrival and explained the fair cooperative billing breakdown. Very professional!'
-  }
-];
+let inMemoryBookings = [];
 
 // 4. Workers Endpoints
 router.get('/workers', async (req, res) => {

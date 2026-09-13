@@ -14,11 +14,21 @@ import {
 
 export async function seedDatabaseIfEmpty() {
   try {
-    const workerCount = await Worker.countDocuments();
-    if (workerCount === 0) {
-      console.log('🌱 Seeding Initial Workers into MongoDB Atlas...');
-      await Worker.insertMany(INITIAL_WORKERS);
+    // 1. Purge fake demo seed bookings
+    await Booking.deleteMany({ id: 'BK-7821' });
+
+    // 2. Remove old random test workers with timestamp IDs
+    await Worker.deleteMany({ id: { $regex: /^w-\d{10,}/ } });
+
+    // 3. Upsert all authentic verified cooperative workers
+    for (const worker of INITIAL_WORKERS) {
+      await Worker.findOneAndUpdate(
+        { id: worker.id },
+        { $set: worker },
+        { upsert: true }
+      );
     }
+    console.log(`✅ Synced ${INITIAL_WORKERS.length} verified cooperative artisans to MongoDB Atlas.`);
 
     const proposalCount = await Proposal.countDocuments();
     if (proposalCount === 0) {
@@ -38,7 +48,7 @@ export async function seedDatabaseIfEmpty() {
       await WelfareMetric.create(COOP_WELFARE_METRICS);
     }
 
-    console.log('✅ MongoDB Atlas Seed Check Complete.');
+    console.log('✅ MongoDB Atlas Clean & Seed Complete.');
   } catch (err) {
     console.warn('⚠️ Seeding notice (using live/in-memory records):', err.message);
   }

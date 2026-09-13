@@ -103,44 +103,31 @@ router.get('/services', (req, res) => {
 
 // In-memory fallback stores for high resilience
 let inMemoryWorkers = [...INITIAL_WORKERS];
-let inMemoryBookings = [
-  {
-    id: 'BK-7821',
-    serviceId: 'electrical',
-    serviceTitle: 'Electrical & Power Systems',
-    subServiceName: 'MCB / Short Circuit Troubleshooting',
-    customerId: 'c-501',
-    customerName: 'Priya Sharma',
-    customerPhone: '+91 98221 55601',
-    customerAddress: 'Flat 402, Rohan Heights, FC Road, Shivajinagar, Pune',
-    customerLocation: { lat: 18.5298, lng: 73.8472 },
-    workerId: 'w-101',
-    workerName: 'Ramesh Jadhav',
-    workerPhone: '+91 98230 44819',
-    workerAvatar: 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=150&auto=format&fit=crop&q=80',
-    workerRating: 4.9,
-    workerSociety: 'Pune Urban Electrical & Tech Cooperative',
-    totalAmount: 499,
-    status: 'COMPLETED',
-    startOtp: '4819',
-    endOtp: '7721',
-    createdAt: '2026-08-22T14:30:00Z',
-    ratingGiven: 5,
-    reviewText: 'Prompt arrival and explained the fair cooperative billing breakdown. Very professional!'
-  }
-];
+let inMemoryBookings = [];
 
 // 4. Workers Endpoints
 router.get('/workers', async (req, res) => {
+  const { skill, isOnline } = req.query;
   if (isMongoConnected()) {
     try {
-      const workers = await Worker.find().sort({ fairRotationScore: -1 });
+      const query = {};
+      if (skill) query.skills = skill;
+      if (isOnline !== undefined) query.isOnline = isOnline === 'true';
+      const workers = await Worker.find(query).sort({ fairRotationScore: -1 });
       if (workers && workers.length > 0) return res.json(workers);
     } catch (err) {
       console.error(err);
     }
   }
-  res.json(inMemoryWorkers);
+  let result = inMemoryWorkers;
+  if (skill) {
+    result = result.filter(w => Array.isArray(w.skills) && w.skills.includes(skill));
+  }
+  if (isOnline !== undefined) {
+    const onlineBool = isOnline === 'true';
+    result = result.filter(w => w.isOnline === onlineBool);
+  }
+  res.json(result);
 });
 
 router.post('/workers', async (req, res) => {
@@ -691,6 +678,62 @@ router.patch('/bookings/:id', async (req, res) => {
       console.error('Error updating booking in MongoDB:', e);
     }
   }
+  res.json(updatedBooking);
+});
+
+// 5B. Worker Declines a Gig Broadcast (Real-time Rapido-style Decline Tracking)
+router.post('/bookings/:id/decline', async (req, res) => {
+  const { workerId, reason = 'Busy with ongoing task', workerName = 'Artisan' } = req.body;
+  if (!workerId) {
+    return res.status(400).json({ error: 'workerId is required to decline' });
+  }
+
+  const current = inMemoryBookings.find(b => b.id === req.params.id);
+  const declinedIds = Array.from(new Set([...(current?.declinedWorkerIds || []), workerId]));
+  const declineRecord = {
+    workerId,
+    workerName,
+    reason,
+    declinedAt: new Date().toISOString()
+  };
+  const declinedList = [...(current?.declinedWorkers || []), declineRecord];
+  
+  const updatedNotified = (current?.notifiedWorkers || []).map(nw => 
+    nw.workerId === workerId ? { ...nw, status: 'declined', reason } : nw
+  );
+
+  const updates = {
+    declinedWorkerIds: declinedIds,
+    declinedWorkersCount: declinedIds.length,
+    declinedWorkers: declinedList,
+    notifiedWorkers: updatedNotified
+  };
+
+  const updatedBooking = { ...(current || {}), ...updates };
+
+  // Update in-memory store
+  inMemoryBookings = inMemoryBookings.map(b => (b.id === req.params.id ? updatedBooking : b));
+
+  if (isMongoConnected()) {
+    try {
+      const updated = await Booking.findOneAndUpdate(
+        { id: req.params.id },
+        { 
+          $addToSet: { declinedWorkerIds: workerId },
+          $push: { declinedWorkers: declineRecord },
+          $set: { 
+            declinedWorkersCount: declinedIds.length,
+            notifiedWorkers: updatedNotified 
+          }
+        },
+        { new: true }
+      );
+      if (updated) return res.json(updated);
+    } catch (e) {
+      console.error('Error updating booking decline in MongoDB:', e);
+    }
+  }
+
   res.json(updatedBooking);
 });
 

@@ -77,6 +77,12 @@ export const api = {
       body: JSON.stringify(updates),
     });
   },
+  declineBooking: async (id, { workerId, reason, workerName }) => {
+    return await fetchJson(`/bookings/${id}/decline`, {
+      method: 'POST',
+      body: JSON.stringify({ workerId, reason, workerName }),
+    });
+  },
 
   // Governance Proposals
   getProposals: async () => {

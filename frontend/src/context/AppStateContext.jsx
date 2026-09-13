@@ -207,44 +207,19 @@ export function AppStateProvider({ children }) {
     }
   }, []);
 
-  // Initial Seed Booking (Demonstrates transparent receipts for default account)
-  const INITIAL_DEFAULT_BOOKINGS = [
-    {
-      id: 'BK-7821',
-      serviceId: 'electrical',
-      serviceTitle: 'Electrical & Power Systems',
-      subServiceName: 'MCB / Short Circuit Troubleshooting',
-      customerId: 'CIT-MH-501',
-      customerEmail: 'priya.sharma@sahakar.org',
-      customerName: 'Priya Sharma',
-      customerPhone: '+91 98221 55601',
-      customerAddress: 'Flat 402, Rohan Heights, FC Road, Shivajinagar, Pune',
-      customerLocation: { lat: 18.5298, lng: 73.8472 },
-      workerId: 'w-101',
-      workerName: 'Ramesh Jadhav',
-      workerPhone: '+91 98230 44819',
-      workerAvatar: 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=150&auto=format&fit=crop&q=80',
-      workerRating: 4.9,
-      workerSociety: 'Pune Urban Electrical & Tech Cooperative',
-      totalAmount: 499,
-      status: 'COMPLETED',
-      startOtp: '4819',
-      endOtp: '7721',
-      createdAt: '2026-08-22T14:30:00Z',
-      breakdown: calculateInvoiceBreakdown(499, SERVICES_CATALOG[1]),
-      ratingGiven: 5,
-      reviewText: 'Prompt arrival and explained the fair cooperative billing breakdown. Very professional!'
-    }
-  ];
+  // Initial Seed Booking: Clean start without dummy records
+  const INITIAL_DEFAULT_BOOKINGS = [];
 
-  // Bookings Store with localStorage persistence
+  // Bookings Store with localStorage persistence (purges legacy demo bookings)
   const [bookings, setBookingsState] = useState(() => {
     try {
       const saved = localStorage.getItem('sahakar_bookings');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          // Filter out legacy dummy demo bookings like BK-7821
+          const realBookings = parsed.filter(b => b.id !== 'BK-7821');
+          return realBookings;
         }
       }
     } catch (e) {}
@@ -275,7 +250,7 @@ export function AppStateProvider({ children }) {
     {
       id: 'n-1',
       title: 'Cooperative Dividend Accrued',
-      message: '₹120 added to your quarterly patronage dividend reserve from completed gig BK-7821.',
+      message: '₹120 added to your quarterly patronage dividend reserve from your active cooperative share.',
       time: '1 hour ago',
       type: 'dividend'
     }
@@ -596,20 +571,35 @@ export function AppStateProvider({ children }) {
   };
 
   // Worker Submits a Custom Quote / Bid for a Broadcasted Gig
-  const submitWorkerQuote = (bookingId, workerObj = activeWorker, quoteAmount, quoteNotes = '') => {
-    const amount = Number(quoteAmount);
-    if (!amount || amount <= 0) return;
+  // Hybrid Base Pricing: Minimum Cooperative Floor is strictly protected against exploitation
+  const submitWorkerQuote = (
+    bookingId, 
+    workerObj = activeWorker, 
+    quoteAmount, 
+    quoteNotes = '',
+    quoteDetails = {}
+  ) => {
+    const targetBooking = bookings.find(b => b.id === bookingId);
+    const minBaseFloor = Number(targetBooking?.baseLaborPrice || targetBooking?.totalAmount || 100);
+    
+    // Anti-exploitation shield: Quoted amount cannot be less than the cooperative base floor
+    let amount = Number(quoteAmount);
+    if (!amount || isNaN(amount) || amount < minBaseFloor) {
+      amount = minBaseFloor;
+    }
+
+    const materialCost = Math.max(0, Number(quoteDetails.materialCost) || 0);
+    const complexityCost = Math.max(0, Number(quoteDetails.complexityCost) || 0);
 
     const workerLoc = workerObj.location || { lat: 18.5298, lng: 73.8472 };
-    const targetBooking = bookings.find(b => b.id === bookingId);
     const custLoc = targetBooking?.customerLocation || customer?.location || { lat: 18.5298, lng: 73.8472 };
     const distance = calculateDistanceKm(custLoc.lat, custLoc.lng, workerLoc.lat, workerLoc.lng);
 
     // Dynamic optimization score calculation for this quote:
-    // Nearest (40%) + Best Rating (35%) + Less Cost (25%)
+    // Nearest (40%) + Best Rating (35%) + Fair Cost / Value (25%)
     const proxScore = Math.max(10, Math.min(100, Math.round(((15 - distance) / 15) * 100)));
     const ratingScore = Math.max(20, Math.min(100, Math.round(((workerObj.rating || 4.8) / 5) * 100)));
-    const costScore = Math.max(20, Math.min(100, Math.round(100 - (amount / 600) * 50)));
+    const costScore = Math.max(20, Math.min(100, Math.round(100 - (amount / 800) * 50)));
     const optimizationScore = Math.round(proxScore * 0.40 + ratingScore * 0.35 + costScore * 0.25);
 
     const newQuote = {
@@ -622,11 +612,14 @@ export function AppStateProvider({ children }) {
       workerSociety: workerObj.societyName,
       workerLocation: workerLoc,
       distanceKm: distance,
+      baseLaborPrice: minBaseFloor,
+      materialCost,
+      complexityCost,
       quotedAmount: amount,
       workerPayout: Math.round(amount * 0.88),
       welfareShare: Math.round(amount * 0.07),
       platformFee: Math.round(amount * 0.05),
-      quoteNotes: quoteNotes.trim() || 'Ready with required tools to deliver immediate service.',
+      quoteNotes: quoteNotes.trim() || (materialCost > 0 ? `Includes ₹${materialCost} spare parts/material` : 'Equipped with standard cooperative tools.'),
       optimizationScore,
       submittedAt: new Date().toISOString()
     };
@@ -651,18 +644,19 @@ export function AppStateProvider({ children }) {
 
     addNotification(
       'Custom Quote Submitted',
-      `Quoted ₹${amount} for Gig #${bookingId}. Dynamic Match Rank: ${optimizationScore}%.`,
+      `Quoted ₹${amount} (Base ₹${minBaseFloor} + Parts ₹${materialCost}). Match Rank: ${optimizationScore}%.`,
       'success'
     );
 
     speechService.speak(
-      `आपकी ₹${amount} की बोली दर्ज हो गई है। ग्राहक को विकल्प भेजा गया है।`,
+      `आपकी ₹${amount} की सुरक्षित सहकारी बोली दर्ज हो गई है।`,
       'hi'
     );
   };
 
   // Customer or Platform Accepts an Artisan's Quote
   const acceptWorkerQuote = (bookingId, quote) => {
+    const targetBooking = bookings.find(b => b.id === bookingId);
     const updates = {
       workerId: quote.workerId,
       workerName: quote.workerName,
@@ -671,6 +665,9 @@ export function AppStateProvider({ children }) {
       workerRating: quote.workerRating,
       workerSociety: quote.workerSociety,
       workerLocation: { ...quote.workerLocation },
+      baseLaborPrice: quote.baseLaborPrice || targetBooking?.baseLaborPrice || quote.quotedAmount,
+      materialCost: quote.materialCost || 0,
+      complexityCost: quote.complexityCost || 0,
       totalAmount: quote.quotedAmount,
       breakdown: {
         workerPayout: quote.workerPayout,
@@ -704,13 +701,98 @@ export function AppStateProvider({ children }) {
     );
   };
 
-  // 1. Create a New Booking
+  // On-Site Add-on Addition (e.g. materials, spare parts, unexpected scope)
+  const addBookingAddon = (bookingId, addonItem) => {
+    const price = Math.max(0, Math.round(Number(addonItem.price) || 0));
+    if (price <= 0 || !addonItem.name?.trim()) return null;
+
+    const newAddon = {
+      id: 'addon-' + Date.now(),
+      name: addonItem.name.trim(),
+      price: price,
+      category: addonItem.category || 'material',
+      notes: addonItem.notes ? addonItem.notes.trim() : '',
+      addedAt: new Date().toISOString()
+    };
+
+    let updatedBooking = null;
+
+    setBookings(prev =>
+      prev.map(b => {
+        if (b.id === bookingId) {
+          const baseFloor = Number(b.baseLaborPrice || b.totalAmount || 0);
+          const currentAddOns = Array.isArray(b.addOns) ? b.addOns : [];
+          const updatedAddOns = [...currentAddOns, newAddon];
+          const totalAddOnCost = updatedAddOns.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+          const newTotal = baseFloor + totalAddOnCost;
+          const newBreakdown = calculateInvoiceBreakdown(newTotal, { id: b.serviceId, title: b.serviceTitle });
+
+          const updates = {
+            addOns: updatedAddOns,
+            materialCost: (Number(b.materialCost) || 0) + (addonItem.category !== 'complexity' ? price : 0),
+            complexityCost: (Number(b.complexityCost) || 0) + (addonItem.category === 'complexity' ? price : 0),
+            totalAmount: newTotal,
+            breakdown: newBreakdown
+          };
+
+          updatedBooking = { ...b, ...updates };
+          api.updateBooking(bookingId, updates).catch(console.warn);
+
+          return updatedBooking;
+        }
+        return b;
+      })
+    );
+
+    addNotification(
+      'Material / Scope Added',
+      `Added "${newAddon.name}" (+₹${price}) to Gig #${bookingId}. Total: ₹${updatedBooking?.totalAmount || 'Updated'}.`,
+      'match'
+    );
+
+    try {
+      speechService.playChime('activate');
+      speechService.speak(`अतिरिक्त सामग्री ${newAddon.name} ₹${price} जोड़ दी गई है।`, 'hi');
+    } catch (e) {}
+
+    return newAddon;
+  };
+
+  // 1. Create a New Booking with Hybrid Rate Card Minimum Base Floor & Real-Time Rapido Availability
   const createBooking = (service, subService, bookingDetails) => {
     const bookingId = 'BK-' + Math.floor(1000 + Math.random() * 9000);
     const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const endOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const amount = subService ? subService.price : service.basePrice;
     const breakdown = calculateInvoiceBreakdown(amount, service);
+
+    const custLoc = bookingDetails.location || customer.location || { lat: 18.5298, lng: 73.8472 };
+
+    // Real-Time Query: Strictly count and list verified matching online cooperative workers (No random numbers!)
+    const matchingWorkers = workers.filter(w => 
+      (w.status === 'online' || w.isOnline) && 
+      w.skills && 
+      w.skills.includes(service.id)
+    );
+
+    const notifiedWorkers = matchingWorkers.map(w => {
+      const dist = calculateDistanceKm(
+        custLoc.lat,
+        custLoc.lng,
+        w.location?.lat || 18.5298,
+        w.location?.lng || 73.8472
+      );
+      return {
+        workerId: w.id,
+        name: w.name,
+        phone: w.phone,
+        avatar: w.avatar,
+        rating: w.rating,
+        societyName: w.societyName,
+        distanceKm: dist,
+        status: 'notified'
+      };
+    });
 
     const newBooking = {
       id: bookingId,
@@ -722,15 +804,24 @@ export function AppStateProvider({ children }) {
       customerName: bookingDetails.customerName || customer.name,
       customerPhone: bookingDetails.customerPhone || customer.phone,
       customerAddress: bookingDetails.address || customer.address,
-      customerLocation: bookingDetails.location || customer.location,
+      customerLocation: custLoc,
       scheduledTime: bookingDetails.scheduledTime || 'Immediate (Express Dispatch)',
       notes: bookingDetails.notes || '',
       problemPhoto: bookingDetails.problemPhoto || null,
       completionPhoto: null,
+      baseLaborPrice: amount, // Guaranteed Cooperative Minimum Rate Card Floor
+      materialCost: 0,
+      complexityCost: 0,
+      addOns: [],
       totalAmount: amount,
       breakdown,
       status: 'BROADCASTING',
       quotes: [],
+      availableWorkersCount: matchingWorkers.length,
+      notifiedWorkers,
+      declinedWorkerIds: [],
+      declinedWorkersCount: 0,
+      declinedWorkers: [],
       startOtp,
       endOtp,
       createdAt: new Date().toISOString(),
@@ -745,28 +836,63 @@ export function AppStateProvider({ children }) {
     api.createBooking(newBooking).catch(console.warn);
 
     addNotification(
-      'Gig Broadcasted & Saved to MongoDB',
-      `Searching nearest available cooperative partners for ${service.title}...`,
+      'Gig Broadcasted · Radar Active',
+      `Contacting ${matchingWorkers.length} available cooperative artisans for ${service.title}...`,
       'broadcast'
     );
 
-    // Allow 25 seconds for connected workers to submit quotes or accept.
-    // If quotes exist, auto-select the best quote based on Dynamic Optimization!
-    setTimeout(() => {
-      setBookings(current => {
-        const target = current.find(b => b.id === bookingId);
-        if (target && target.status === 'BROADCASTING') {
-          if (target.quotes && target.quotes.length > 0) {
-            acceptWorkerQuote(bookingId, target.quotes[0]);
-          } else {
-            autoAssignWorker(bookingId, service.id, target.customerLocation);
-          }
-        }
-        return current;
-      });
-    }, 25000);
+    speechService.speak(
+      `आपके क्षेत्र में ${matchingWorkers.length} कुशल कारीगर उपलब्ध हैं। अनुरोध प्रसारित किया गया है।`,
+      'hi'
+    );
 
+    // ZERO FAKE AUTO-ACCEPTANCE: Strictly awaits genuine artisan acceptance or quote approval.
     return bookingId;
+  };
+
+  // 1B. Worker Declines a Gig Broadcast (Real-time Rapido-style Decline Tracking)
+  const declineJobByWorker = (bookingId, workerId = activeWorker.id, reason = 'Busy with ongoing task') => {
+    const worker = workers.find(w => w.id === workerId) || activeWorker;
+    const declineRecord = {
+      workerId,
+      workerName: worker?.name || 'Artisan',
+      reason,
+      declinedAt: new Date().toISOString()
+    };
+
+    setBookings(prev =>
+      prev.map(b => {
+        if (b.id === bookingId) {
+          const declinedIds = Array.from(new Set([...(b.declinedWorkerIds || []), workerId]));
+          const declinedList = [...(b.declinedWorkers || []), declineRecord];
+          const updatedNotified = (b.notifiedWorkers || []).map(nw => 
+            nw.workerId === workerId ? { ...nw, status: 'declined', reason } : nw
+          );
+          return {
+            ...b,
+            declinedWorkerIds: declinedIds,
+            declinedWorkersCount: declinedIds.length,
+            declinedWorkers: declinedList,
+            notifiedWorkers: updatedNotified
+          };
+        }
+        return b;
+      })
+    );
+
+    api.declineBooking(bookingId, { 
+      workerId, 
+      reason, 
+      workerName: worker?.name || 'Artisan' 
+    }).catch(console.warn);
+
+    addNotification(
+      'Gig Passed / Declined',
+      `You passed on Gig #${bookingId} (${reason}). Customer informed in real time.`,
+      'info'
+    );
+
+    speechService.speak('कार्य अस्वीकार किया गया।', 'hi');
   };
 
   // 2. Auto-Assign Candidate Workers (Fallback for Solo Demo)
@@ -1155,8 +1281,10 @@ export function AppStateProvider({ children }) {
         createBooking,
         updateBooking,
         acceptJobByWorker,
+        declineJobByWorker,
         submitWorkerQuote,
         acceptWorkerQuote,
+        addBookingAddon,
         updateBookingStatus,
         submitReview,
         proposals,

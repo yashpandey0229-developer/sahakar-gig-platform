@@ -16,7 +16,14 @@ import {
 import { useAppState } from '../../context/AppStateContext';
 
 export function BookingModal({ service, isOpen, onClose, onBookingSuccess }) {
-  const { customer, createBooking, detectUserLocation, isLocating } = useAppState();
+  const { customer, createBooking, detectUserLocation, isLocating, workers } = useAppState();
+  
+  const matchingWorkersCount = (workers || []).filter(w => 
+    (w.status === 'online' || w.isOnline) && 
+    w.skills && 
+    w.skills.includes(service?.id)
+  ).length;
+
   const [selectedSubService, setSelectedSubService] = useState(
     service?.subServices[0] || null
   );
@@ -101,6 +108,19 @@ export function BookingModal({ service, isOpen, onClose, onBookingSuccess }) {
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Live Rapido Availability Status Strip */}
+        <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2 text-emerald-950 font-bold">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+            <span>
+              ⚡ <strong>{matchingWorkersCount} Verified {service.title.split(' ')[0]}s Available</strong> in your Pune sector
+            </span>
+          </div>
+          <span className="text-[10px] bg-emerald-600 text-white font-mono font-bold px-2 py-0.5 rounded-md">
+            Live Radar Ready
+          </span>
         </div>
 
         {/* Step 1: Select Sub-Service */}
