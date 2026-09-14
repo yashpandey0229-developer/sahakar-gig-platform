@@ -34,7 +34,7 @@ import { HelpSupportModal } from '../common/HelpSupportModal';
 import { speechService } from '../../services/speechService';
 
 export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
-  const { updateBookingStatus, setCurrentRole, addNotification, acceptWorkerQuote, workers } = useAppState();
+  const { updateBookingStatus, setCurrentRole, addNotification, acceptWorkerQuote, workers, activeWorker } = useAppState();
   const [copiedOtp, setCopiedOtp] = useState(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -140,10 +140,18 @@ export function ActiveBookingTracker({ booking, onOpenReviewModal }) {
           <h2 className="text-2xl sm:text-3xl font-black text-slate-900 font-['Outfit'] mt-1">
             {booking.subServiceName || booking.serviceTitle}
           </h2>
-          <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1 font-medium">
-            <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-            {booking.customerAddress}
-          </p>
+          <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-slate-500 font-medium">
+            <span className="flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+              <span>{booking.customerAddress}</span>
+            </span>
+            {booking.scheduledTime && (
+              <span className="flex items-center gap-1 font-mono font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-lg">
+                <Clock className="w-3.5 h-3.5 text-blue-600" />
+                <span>Slot: {booking.scheduledTime}</span>
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Customer Action Buttons */}

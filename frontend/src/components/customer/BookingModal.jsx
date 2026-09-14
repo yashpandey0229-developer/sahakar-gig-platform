@@ -28,7 +28,39 @@ export function BookingModal({ service, isOpen, onClose, onBookingSuccess }) {
     service?.subServices[0] || null
   );
   const [scheduleType, setScheduleType] = useState('express');
-  const [selectedDate, setSelectedDate] = useState('Today, 4:00 PM - 6:00 PM');
+  
+  const todayStr = new Date().toISOString().split('T')[0];
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrowStr = tomorrowDate.toISOString().split('T')[0];
+  const dayAfterDate = new Date();
+  dayAfterDate.setDate(dayAfterDate.getDate() + 2);
+
+  const [scheduledDateOption, setScheduledDateOption] = useState('tomorrow'); // 'today' | 'tomorrow' | 'dayAfter' | 'custom'
+  const [customDate, setCustomDate] = useState(tomorrowStr);
+  const [scheduledSlot, setScheduledSlot] = useState('02:00 PM - 04:00 PM');
+
+  const TIME_SLOTS = [
+    { id: 'morning', time: '09:00 AM - 11:00 AM', label: 'Morning' },
+    { id: 'midday', time: '11:00 AM - 01:00 PM', label: 'Midday' },
+    { id: 'afternoon', time: '02:00 PM - 04:00 PM', label: 'Afternoon' },
+    { id: 'evening', time: '04:00 PM - 06:00 PM', label: 'Evening' },
+    { id: 'late', time: '06:00 PM - 08:00 PM', label: 'Night' }
+  ];
+
+  const getFormattedScheduledTime = () => {
+    if (scheduleType === 'express') return 'Immediate Express (ETA 10-15m)';
+    let dateLabel = 'Today';
+    if (scheduledDateOption === 'tomorrow') dateLabel = 'Tomorrow (' + tomorrowDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) + ')';
+    else if (scheduledDateOption === 'dayAfter') {
+      dateLabel = dayAfterDate.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' });
+    } else if (scheduledDateOption === 'custom') {
+      const parsed = new Date(customDate);
+      dateLabel = !isNaN(parsed) ? parsed.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' }) : customDate;
+    }
+    return `${dateLabel} • ${scheduledSlot}`;
+  };
+
   const [address, setAddress] = useState(customer.address);
   const [notes, setNotes] = useState('');
   const [problemPhoto, setProblemPhoto] = useState(null);
@@ -74,7 +106,7 @@ export function BookingModal({ service, isOpen, onClose, onBookingSuccess }) {
           customerEmail: customer.email,
           address,
           location: customer.location,
-          scheduledTime: scheduleType === 'express' ? 'Immediate Express (ETA 10-15m)' : selectedDate,
+          scheduledTime: getFormattedScheduledTime(),
           notes: notes + (problemPhoto ? ' [Issue Photo Attached]' : ''),
           problemPhoto
         });
@@ -200,6 +232,140 @@ export function BookingModal({ service, isOpen, onClose, onBookingSuccess }) {
               </p>
             </button>
           </div>
+
+          {/* Interactive Schedule Later Date & Time Slot Picker */}
+          {scheduleType === 'scheduled' && (
+            <div className="mt-3 p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-blue-50/80 via-white to-sky-50/60 border-2 border-blue-200 shadow-sm space-y-4 animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between pb-2 border-b border-blue-100">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-black text-slate-900 font-['Outfit']">
+                    Select Planned Date & Arrival Window
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full">
+                  Guaranteed Slot
+                </span>
+              </div>
+
+              {/* A. Date Selector Chips */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-slate-700 block">
+                  Choose Service Date (दिनांक चुनें):
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setScheduledDateOption('today')}
+                    className={`p-2.5 rounded-2xl border text-center transition ${
+                      scheduledDateOption === 'today'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm font-black ring-2 ring-blue-400/30'
+                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 font-medium'
+                    }`}
+                  >
+                    <span className="text-xs block font-bold">Today</span>
+                    <span className="text-[10px] opacity-80 block">{new Date().toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setScheduledDateOption('tomorrow')}
+                    className={`p-2.5 rounded-2xl border text-center transition ${
+                      scheduledDateOption === 'tomorrow'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm font-black ring-2 ring-blue-400/30'
+                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 font-medium'
+                    }`}
+                  >
+                    <span className="text-xs block font-bold">Tomorrow</span>
+                    <span className="text-[10px] opacity-80 block">{tomorrowDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setScheduledDateOption('dayAfter')}
+                    className={`p-2.5 rounded-2xl border text-center transition ${
+                      scheduledDateOption === 'dayAfter'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm font-black ring-2 ring-blue-400/30'
+                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 font-medium'
+                    }`}
+                  >
+                    <span className="text-xs block font-bold">{dayAfterDate.toLocaleDateString('en-IN', { weekday: 'short' })}</span>
+                    <span className="text-[10px] opacity-80 block">{dayAfterDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setScheduledDateOption('custom')}
+                    className={`p-2.5 rounded-2xl border text-center transition ${
+                      scheduledDateOption === 'custom'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm font-black ring-2 ring-blue-400/30'
+                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 font-medium'
+                    }`}
+                  >
+                    <span className="text-xs block font-bold">Pick Date</span>
+                    <span className="text-[10px] opacity-80 block">Custom 📅</span>
+                  </button>
+                </div>
+
+                {scheduledDateOption === 'custom' && (
+                  <div className="pt-2">
+                    <input
+                      type="date"
+                      min={todayStr}
+                      value={customDate}
+                      onChange={(e) => setCustomDate(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-blue-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* B. Time Slot Chips */}
+              <div className="space-y-1.5 pt-1">
+                <label className="text-[11px] font-black text-slate-700 flex items-center justify-between">
+                  <span>Select 2-Hour Arrival Window (समय चुनें):</span>
+                  <span className="text-[10px] text-blue-700 font-bold font-mono">Selected: {scheduledSlot}</span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {TIME_SLOTS.map(slot => {
+                    const isSelected = scheduledSlot === slot.time;
+                    return (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        onClick={() => setScheduledSlot(slot.time)}
+                        className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm font-bold'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 text-xs'
+                        }`}
+                      >
+                        <div>
+                          <span className="text-[10px] uppercase font-mono block opacity-80">{slot.label}</span>
+                          <span className="text-xs font-bold">{slot.time}</span>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-white shrink-0 ml-1" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* C. Selected Slot Summary Badge */}
+              <div className="p-3 bg-white border border-blue-200 rounded-2xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-slate-700">
+                  <Clock className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>
+                    <strong>Confirmed Appointment:</strong> {getFormattedScheduledTime()}
+                  </span>
+                </div>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300">
+                  ✓ Slot Ready
+                </span>
+              </div>
+
+            </div>
+          )}
         </div>
 
         {/* Step 3: Address Details with Real GPS Detection */}
@@ -341,12 +507,12 @@ export function BookingModal({ service, isOpen, onClose, onBookingSuccess }) {
             {isSubmitting ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Broadcasting to Nearest Radar...</span>
+                <span>{scheduleType === 'scheduled' ? 'Confirming Scheduled Appointment...' : 'Broadcasting to Nearest Radar...'}</span>
               </>
             ) : (
               <>
                 <ShieldCheck className="w-4 h-4" />
-                <span>Confirm & Broadcast to Radar</span>
+                <span>{scheduleType === 'scheduled' ? 'Confirm & Schedule Appointment' : 'Confirm & Broadcast to Radar'}</span>
               </>
             )}
           </button>
