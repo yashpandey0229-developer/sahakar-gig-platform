@@ -9,7 +9,7 @@ import {
   MINISTRY_STATS 
 } from '../services/mockData';
 import { calculateInvoiceBreakdown } from '../services/dividendLedger';
-import { findBestMatchingWorkers, interpolateGeoStep } from '../services/dispatchEngine';
+import { findBestMatchingWorkers, interpolateGeoStep, calculateDistanceKm } from '../services/dispatchEngine';
 import { speechService } from '../services/speechService';
 import { detectRealCurrentLocation } from '../services/geoService';
 import { api } from '../services/api';

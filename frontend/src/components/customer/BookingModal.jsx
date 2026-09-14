@@ -67,19 +67,24 @@ export function BookingModal({ service, isOpen, onClose, onBookingSuccess }) {
   const handleSubmit = () => {
     setIsSubmitting(true);
     setTimeout(() => {
-      const bookingId = createBooking(service, selectedSubService, {
-        customerName: customer.name,
-        customerPhone: customer.phone,
-        customerEmail: customer.email,
-        address,
-        location: customer.location,
-        scheduledTime: scheduleType === 'express' ? 'Immediate Express (ETA 10-15m)' : selectedDate,
-        notes: notes + (problemPhoto ? ' [Issue Photo Attached]' : ''),
-        problemPhoto
-      });
-      setIsSubmitting(false);
-      if (onBookingSuccess) onBookingSuccess(bookingId);
-      onClose();
+      try {
+        const bookingId = createBooking(service, selectedSubService, {
+          customerName: customer.name,
+          customerPhone: customer.phone,
+          customerEmail: customer.email,
+          address,
+          location: customer.location,
+          scheduledTime: scheduleType === 'express' ? 'Immediate Express (ETA 10-15m)' : selectedDate,
+          notes: notes + (problemPhoto ? ' [Issue Photo Attached]' : ''),
+          problemPhoto
+        });
+        setIsSubmitting(false);
+        if (onBookingSuccess) onBookingSuccess(bookingId);
+        onClose();
+      } catch (err) {
+        console.error('Failed to create booking:', err);
+        setIsSubmitting(false);
+      }
     }, 1200);
   };
 
